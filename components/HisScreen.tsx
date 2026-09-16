@@ -11,7 +11,7 @@ import type { PushState } from "@/lib/push";
  */
 export default function HisScreen({
   partnerName, hint, tries, unmetCount, revealedMessage, buzzing, custom,
-  push, onSend, onAddFavourite, onEnablePush,
+  push, pow, onSend, onAddFavourite, onEnablePush,
 }: {
   partnerName: string | null;
   hint: string | null;
@@ -21,6 +21,7 @@ export default function HisScreen({
   buzzing: boolean;
   custom: Item[];
   push: PushState;
+  pow: string | null;          // "POW!" — she is hitting back
   onEnablePush: () => void;
   onSend: (item: Item) => void;
   onAddFavourite: (emoji: string, name: string) => void;
@@ -31,7 +32,17 @@ export default function HisScreen({
   const left = MAX_TRIES - tries;
 
   return (
-    <main className={`min-h-dvh px-4 py-5 max-w-md mx-auto flex flex-col gap-4 ${buzzing ? "shake" : ""}`}>
+    <main className={`relative min-h-dvh px-4 py-5 max-w-md mx-auto flex flex-col gap-4
+                      ${buzzing ? "shake" : ""}`}>
+      {/* she is hitting back, and he should see it land */}
+      {pow && (
+        <>
+          <div aria-hidden className="pointer-events-none fixed inset-0 z-[70] burst" />
+          <div aria-hidden className="pointer-events-none fixed inset-0 z-[71] grid place-items-center">
+            <span className="pow-text">{pow}</span>
+          </div>
+        </>
+      )}
       {!hint && !revealedMessage && (
         <p className="text-center text-sm text-inkSoft text-balance mt-6">
           You&apos;re in <b className="text-ink">{partnerName ?? "her"}</b>&apos;s room.

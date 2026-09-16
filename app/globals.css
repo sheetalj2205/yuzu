@@ -38,3 +38,33 @@ body {
 }
 .shake { animation: shake .7s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .shake { animation: none; outline: 3px solid #E5326E } }
+
+
+/* ---- she is hitting back: he sees it land ---- */
+.pow-text {
+  @apply font-round font-black italic text-[15vw] leading-none;
+  color: #FFF3C4;
+  -webkit-text-stroke: 4px #B0234A;
+  paint-order: stroke fill;
+  text-shadow: 0 6px 0 rgba(176,35,74,.45);
+  animation: pow .85s cubic-bezier(.2,1.7,.4,1) both;
+}
+@keyframes pow {
+  0%   { transform: scale(.2) rotate(-24deg); opacity: 0 }
+  40%  { transform: scale(1.25) rotate(8deg); opacity: 1 }
+  70%  { transform: scale(1) rotate(-3deg);   opacity: 1 }
+  100% { transform: scale(1.08) rotate(0);    opacity: 0 }
+}
+.burst {
+  background: radial-gradient(circle at 50% 50%,
+              rgba(255,214,120,.8) 0%, rgba(255,150,180,.5) 26%, rgba(255,150,180,0) 60%);
+  animation: burst .8s ease-out both;
+}
+@keyframes burst {
+  0%   { opacity: 0; transform: scale(.4) }
+  30%  { opacity: 1 }
+  100% { opacity: 0; transform: scale(1.3) }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pow-text, .burst { animation-duration: .01ms; animation-iteration-count: 1 }
+}

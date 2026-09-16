@@ -35,6 +35,7 @@ export default function Room() {
   const [myName, setMyName]     = useState<string>("");
   const [partnerAt, setPartnerAt] = useState<Presence>("gone");
   const [leftCount, setLeftCount] = useState(0);
+  const [pow, setPow]           = useState<string | null>(null);   // comic hit on HIS screen
   const [push, setPush]         = useState<PushState>("unsupported");
   const stopLoop = useRef<null | (() => void)>(null);
   const cycleRef = useRef<Cycle | null>(null);
@@ -74,41 +75,69 @@ export default function Room() {
   }, [sb, code, router]);
 
   /* ---------------- live sync between the two phones ---------------- */
+  /**
+   * Broadcast, not postgres_changes.
+   *
+   * Realtime evaluates row-level security per subscriber, and the gifts policy
+   * is a two-table join — which it silently fails to deliver on. Both people are
+   * already authenticated members of this room, so they just tell each other
+   * directly. Faster, and it actually arrives.
+   */
+  const chanRef = useRef<ReturnType<typeof sb.channel> | null>(null);
+
   useEffect(() => {
     if (!roomId || !me || !meId) return;
-    const ch = sb.channel(`room:${roomId}`, { config: { presence: { key: meId } } })
-      .on("postgres_changes", { event: "*", schema: "public", table: "cycles", filter: `room_id=eq.${roomId}` },
-        ({ new: row }) => setCycle(row as Cycle))
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "gifts" },
-        ({ new: row }) => {
-          const g = row as unknown as Gift & { verdict: string };
-          if (g.tag === "strike") {                                // she is hitting back
-            if (me === "him") {
-              const hit = HITS.find(h => h.word === g.name);
-              buzzStrike(hit?.pattern ?? [320, 70, 320]);
-              setBuzzing(true);
-              setTimeout(() => setBuzzing(false), 800);
-            }
-            return;
-          }
-          if (me === "her") { setIncoming(g); cue("arrive"); buzzComfort(); }  // HER phone: soft, warm
-        })
-      .on("presence", { event: "sync" }, () => {
-        const { presence, name } = readPartner(ch.presenceState(), me);
-        setPartnerAt(prev => {
-          // he was watching, now he is not — she should know
-          if (prev === "here" && presence !== "here") setLeftCount(c => c + 1);
-          return presence;
-        });
-        if (name) setPartner(name);
-      })
-      .subscribe(status => {
-        if (status === "SUBSCRIBED") void ch.track({ role: me, name: myName, state: "here" });
+
+    const ch = sb.channel(`room:${roomId}`, {
+      config: { presence: { key: meId }, broadcast: { self: false } },
+    });
+    chanRef.current = ch;
+
+    ch.on("broadcast", { event: "cycle" }, ({ payload }) => {
+      const c = payload?.cycle as Cycle | null;
+      // a closed cycle means it is over — clear it, do not resurrect it
+      setCycle(c && !c.closed_at ? c : null);
+      if (!c || c.closed_at) { setIncoming(null); setGifts([]); setHits(0); }
+    });
+
+    ch.on("broadcast", { event: "gift" }, ({ payload }) => {
+      if (me !== "her") return;
+      setIncoming(payload.gift as Gift);
+      cue("arrive");
+      buzzComfort();
+    });
+
+    ch.on("broadcast", { event: "strike" }, ({ payload }) => {
+      if (me !== "him") return;
+      const word = String(payload?.word ?? "POW!");
+      buzzStrike((payload?.pattern as number[]) ?? [320, 70, 320]);
+      setPow(word);
+      setBuzzing(true);
+      setTimeout(() => { setBuzzing(false); setPow(null); }, 900);
+    });
+
+    ch.on("presence", { event: "sync" }, () => {
+      const { presence, name } = readPartner(ch.presenceState(), me);
+      setPartnerAt(prev => {
+        // he was watching, now he is not — she should know
+        if (prev === "here" && presence !== "here") setLeftCount(c => c + 1);
+        return presence;
       });
+      if (name) setPartner(name);
+    });
+
+    ch.subscribe(status => {
+      if (status === "SUBSCRIBED") void ch.track({ role: me, name: myName, state: "here" });
+    });
 
     const untrack = trackVisibility(ch, { role: me, name: myName });
-    return () => { untrack(); sb.removeChannel(ch); };
+    return () => { untrack(); chanRef.current = null; sb.removeChannel(ch); };
   }, [sb, roomId, me, meId, myName]);
+
+  /** Tell the other phone something happened. */
+  const say = useCallback((event: string, payload: Record<string, unknown>) => {
+    void chanRef.current?.send({ type: "broadcast", event, payload });
+  }, []);
 
   /* ---------------- HIS phone buzzes on a loop until she says stop ---------------- */
   useEffect(() => {
@@ -180,15 +209,16 @@ export default function Room() {
                  duration_s: t.duration_s, label: t.label },
       needs: t.needs,
     }).select().single();
-    if (data) setCycle(data as Cycle);
+    if (data) { setCycle(data as Cycle); say("cycle", { cycle: data }); }
     setGifts([]);
+    setHits(0);
     void pushPartner(
       "She's in pain",
       `${t.label} — ${t.needs.length} ${t.needs.length === 1 ? "thing" : "things"} she needs.`,
       [400, 150, 400, 150, 400],
       "yuzu-cramp",
     );
-  }, [sb, roomId, pushPartner]);
+  }, [sb, roomId, pushPartner, say]);
 
   /* ---------------- he sends ---------------- */
   const sendGift = useCallback(async (item: Item) => {
@@ -199,8 +229,11 @@ export default function Room() {
     const tries = cycle.tries + 1;
     const revealed = tries >= MAX_TRIES;
     await sb.from("cycles").update({ tries, revealed }).eq("id", cycle.id);
-    setCycle({ ...cycle, tries, revealed });
-  }, [sb, cycle]);
+    const next = { ...cycle, tries, revealed };
+    setCycle(next);
+    say("gift", { gift: { emoji: item.emoji, name: item.name, tag: item.tag } });
+    say("cycle", { cycle: next });
+  }, [sb, cycle, say]);
 
   const addFavourite = useCallback(async (emoji: string, name: string) => {
     if (!roomId) return;
@@ -218,9 +251,7 @@ export default function Room() {
       cue("wrong");
       void pushPartner("Not that.", "She said it didn't help. Try something else.",
                        [200, 80, 200, 80, 200, 80, 400], "yuzu-nope");
-      // "not really" → his phone goes off again, right now
-      await sb.from("cycles").update({ tries: cycle.tries }).eq("id", cycle.id);
-      setCycle({ ...cycle });
+      say("cycle", { cycle });          // his hint/counter refresh
       return;
     }
 
@@ -228,11 +259,12 @@ export default function Room() {
     const needs = tickOff(cycle.needs.map(n => ({ ...n })), gift.tag);
     const done  = unmet(needs).length === 0;
     if (done) cue("win");
-    await sb.from("cycles").update({
-      needs, closed_at: done ? new Date().toISOString() : null,
-    }).eq("id", cycle.id);
-    setCycle({ ...cycle, needs, closed_at: done ? new Date().toISOString() : null });
-  }, [sb, cycle, incoming, pushPartner]);
+    const closed_at = done ? new Date().toISOString() : null;
+    await sb.from("cycles").update({ needs, closed_at }).eq("id", cycle.id);
+    const next = { ...cycle, needs, closed_at };
+    setCycle(done ? null : next);
+    say("cycle", { cycle: next });
+  }, [sb, cycle, incoming, pushPartner, say]);
 
   /* he failed — she hits back, and every hit fires his phone */
   const strike = useCallback(async (hit: typeof HITS[number]) => {
@@ -241,15 +273,18 @@ export default function Room() {
     await sb.from("gifts").insert({
       cycle_id: cycle.id, emoji: hit.emoji, name: hit.word, tag: "strike",
     });
+    say("strike", { word: hit.word, pattern: hit.pattern });
     void pushPartner(hit.word, "She's had enough.", hit.pattern, "yuzu-strike");
-  }, [sb, cycle, pushPartner]);
+  }, [sb, cycle, pushPartner, say]);
 
   const forgive = useCallback(async () => {
     if (!cycle) return;
-    setHits(0);
-    await sb.from("cycles").update({ closed_at: new Date().toISOString() }).eq("id", cycle.id);
-    setCycle(null);
-  }, [sb, cycle]);
+    const closed = { ...cycle, closed_at: new Date().toISOString() };
+    await sb.from("cycles").update({ closed_at: closed.closed_at }).eq("id", cycle.id);
+    // wipe it here and on his phone, so neither of us is left in the old round
+    setHits(0); setGifts([]); setIncoming(null); setPow(null); setCycle(null);
+    say("cycle", { cycle: closed });
+  }, [sb, cycle, say]);
 
   if (!me) return null;
 
@@ -283,6 +318,7 @@ export default function Room() {
       buzzing={buzzing}
       custom={custom}
       push={push}
+      pow={pow}
       onEnablePush={turnOnPush}
       onSend={sendGift}
       onAddFavourite={addFavourite}
