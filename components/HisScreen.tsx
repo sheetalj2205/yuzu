@@ -32,8 +32,9 @@ export default function HisScreen({
   const left = MAX_TRIES - tries;
 
   return (
-    <main className={`relative min-h-dvh px-4 py-5 max-w-md mx-auto flex flex-col gap-4
+    <main className={`his-ground relative min-h-dvh px-4 py-5 flex flex-col gap-4
                       ${buzzing ? "shake" : ""}`}>
+      <div className="w-full max-w-md mx-auto flex flex-col gap-4">
       {/* she is hitting back, and he should see it land */}
       {pow && (
         <>
@@ -54,8 +55,8 @@ export default function HisScreen({
           at the moment he joins, before there is anything else on screen. */}
       {push === "prompt" && (
         <button onClick={onEnablePush}
-          className="card border-pain bg-painSoft text-center active:translate-y-[2px]">
-          <p className="font-round font-black text-sm text-pain">Let her reach you 🔔</p>
+          className="card text-center active:translate-y-[2px]">
+          <p className="font-round font-black text-sm">Let her reach you 🔔</p>
           <p className="text-inkSoft text-xs mt-1">
             So your phone still buzzes when Yuzu is closed.
           </p>
@@ -68,26 +69,29 @@ export default function HisScreen({
       )}
 
       {revealedMessage ? (
-        <div className="card pop">
+        <div className="card pop border-l-[5px] border-l-pain">
           <p className="font-round font-bold text-xs text-pain mb-2">🔓 What she actually wrote:</p>
           <p className="font-round font-black text-xl leading-snug">&ldquo;{revealedMessage}&rdquo;</p>
           <p className="text-inkSoft text-sm mt-3">She&apos;d told you already.</p>
         </div>
       ) : hint ? (
         <>
-          <p className="text-center font-round font-black text-lg text-pain">
-            {left > 0 ? `${left} ${left === 1 ? "try" : "tries"} left to make her better ♡`
-                      : "Out of tries 🥺"}
+          <p className="text-center font-round font-bold text-sm text-inkSoft">
+            {left > 0
+              ? <>You have <b className="text-ink">{left}</b> {left === 1 ? "try" : "tries"} left ♡</>
+              : "Out of tries — but she is still hurting"}
           </p>
-          <div className="card bg-lavSoft border-lav">
+          {/* the one place colour is spent on his screen */}
+          <div className="card border-l-[5px] border-l-lav">
             <p className="font-round font-bold text-xs text-lav mb-2">✦ all Yuzu will tell you</p>
-            <p className="italic text-base leading-snug">&ldquo;{hint}&rdquo;</p>
-            <p className="font-round font-bold text-xs text-lav mt-3">
-              → pick something and send it
+            <p className="italic text-lg leading-snug">&ldquo;{hint}&rdquo;</p>
+            <p className="font-round font-bold text-xs text-inkFaint mt-3">
+              pick something and send it
             </p>
           </div>
           {unmetCount > 0 && (
-            <p className="text-center font-round font-bold text-sm text-pain bg-painSoft rounded-full py-2">
+            <p className="text-center font-round font-bold text-xs text-inkSoft">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-pain align-middle mr-1.5" />
               {unmetCount} {unmetCount === 1 ? "thing" : "things"} still wrong
             </p>
           )}
@@ -144,6 +148,7 @@ export default function HisScreen({
           )}
         </div>
       )}
+      </div>
     </main>
   );
 }

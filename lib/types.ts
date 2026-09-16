@@ -28,4 +28,6 @@ export type Item = {
   custom?: boolean;
 };
 
-export const MAX_TRIES = 5;
+/** He gets three goes. After that she sees her words revealed to him —
+ *  and his phone keeps going until she says every need is met. */
+export const MAX_TRIES = 3;

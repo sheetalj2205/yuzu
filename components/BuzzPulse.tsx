@@ -1,8 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
-import { BUZZ_EVENT, canVibrate } from "@/lib/haptics";
-import { setSound, soundOn } from "@/lib/sound";
+import { BUZZ_EVENT } from "@/lib/haptics";
 
 /**
  * What an iPhone gets instead of a vibration.
@@ -11,20 +9,13 @@ import { setSound, soundOn } from "@/lib/sound";
  * have used — red and hard for her cramp, warm and slow for his comfort. On
  * Android this runs alongside the real vibration and just makes it more visible.
  *
- * The sound toggle only appears where something can actually buzz — the room and
- * the demo page. On the login and onboarding screens it would just be clutter.
+ * Nothing to tap, nothing to read — it is invisible until a buzz fires.
  */
 export default function BuzzPulse() {
   const [flash, setFlash] = useState<null | "pain" | "comfort">(null);
-  const [noMotor, setNoMotor] = useState(false);
-  const [sound, setSoundState] = useState(false);
   const timers = useRef<number[]>([]);
-  const path = usePathname();
-  const canBuzzHere = path.startsWith("/room/") || path === "/demo";
 
   useEffect(() => {
-    setNoMotor(!canVibrate());
-    setSoundState(soundOn());
 
     const onBuzz = (e: Event) => {
       const { pattern, kind } = (e as CustomEvent<{ pattern: number[]; kind: "pain" | "comfort" }>).detail;
@@ -63,21 +54,6 @@ export default function BuzzPulse() {
         }}
       />
 
-      {canBuzzHere && (
-      <button
-        onClick={() => { const next = !sound; setSound(next); setSoundState(next); }}
-        aria-pressed={sound}
-        className={`fixed right-3 top-3 z-[61] rounded-full border-2 px-3 py-1.5 text-xs
-                    font-round font-bold shadow-sm transition
-                    ${sound ? "bg-pain border-pain text-white" : "bg-surface border-line text-inkSoft"}`}
-        title={noMotor
-          ? "Your phone can't vibrate — sound is the next best thing"
-          : "Hear the buzz as well as feel it"}
-        style={{ top: "calc(0.75rem + env(safe-area-inset-top, 0px))" }}
-      >
-        {sound ? "🔊 sound on" : "🔇 sound off"}
-      </button>
-      )}
-    </>
+          </>
   );
 }

@@ -1,5 +1,5 @@
 import type { Need, Tag, Translation } from "./types";
-import { TAGS } from "./types";
+import { MAX_TRIES, TAGS } from "./types";
 
 /* ------------------------------------------------------------------ *
  * THE PROMPT. This is the whole AI product — read it before changing. *
@@ -141,14 +141,18 @@ export function tickOff(needs: Need[], tag: string): Need[] {
 }
 
 /**
- * The hint he sees: always about the FIRST NEED STILL UNMET, and one step
- * clearer on EVERY try — not every other one. There are five hints for five
- * tries; three stretched across five meant two of his guesses changed nothing,
- * which read as the app being stuck.
+ * The hint he sees: always about the FIRST NEED STILL UNMET, and a clear step
+ * further on every single try.
+ *
+ * Each need carries five hints but he only gets three goes, so they are spread
+ * across the whole ladder — vague, middle, nearly telling him — rather than
+ * stopping a third of the way up. Past his last try he keeps the clearest one.
  */
 export function hintFor(needs: Need[], tries: number): string | null {
   const open = unmet(needs);
   if (!open.length) return null;
   const hints = open[0].hints.length ? open[0].hints : HINT_BANK[open[0].tag];
-  return hints[Math.min(tries, hints.length - 1)];
+  const last = hints.length - 1;
+  const step = MAX_TRIES > 1 ? Math.round((tries * last) / (MAX_TRIES - 1)) : last;
+  return hints[Math.min(Math.max(step, 0), last)];
 }

@@ -25,7 +25,13 @@ body {
 }
 .card {
   @apply bg-surface border-2 border-line rounded-blob p-4;
-  box-shadow: 0 2px 0 rgba(229,50,110,.13), 0 16px 34px -18px rgba(90,36,64,.4);
+  box-shadow: 0 2px 0 rgba(229,50,110,.10), 0 16px 34px -18px rgba(90,36,64,.3);
+}
+
+/* HIS side. Hers is the room that warms up; his is a phone he is trying to work
+   out. Near-white, so the one hint and the one buzz are the only loud things. */
+.his-ground {
+  background: linear-gradient(170deg, #FFF8FB 0%, #FFF1F6 100%);
 }
 @keyframes pop { from { transform: scale(0) rotate(-30deg); opacity: 0 }
                  to   { transform: scale(1) rotate(0);      opacity: 1 } }

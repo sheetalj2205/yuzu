@@ -13,15 +13,16 @@
  * is a user gesture, which is also what browsers require before audio can start.
  */
 
-const KEY = "yuzu-sound";
-
-export const soundOn = () => {
-  try { return localStorage.getItem(KEY) === "1"; } catch { return false; }
-};
-export const setSound = (on: boolean) => {
-  try { localStorage.setItem(KEY, on ? "1" : "0"); } catch {}
-  if (on) void ensureCtx()?.resume();
-};
+/**
+ * Sound is simply on.
+ *
+ * There is no toggle: a control that says "sound off" on a screen that is
+ * meant to hold four things is clutter, and the sound is not decoration here —
+ * on a phone that cannot vibrate it is the only thing he can actually feel.
+ * Browsers still will not start audio until the first tap, which every screen
+ * in this app requires anyway.
+ */
+export const soundOn = () => true;
 
 let ctx: AudioContext | null = null;
 function ensureCtx(): AudioContext | null {
@@ -61,7 +62,31 @@ type Partial = { wave: OscillatorType; hz: number; gain: number };
  * comfort is the deliberate opposite: one warm sine, no rattle, no wobble.
  * The contrast between the two is the product.
  */
-const VOICES: Record<"pain" | "comfort" | "strike", { partials: Partial[]; wobbleHz: number }> = {
+type Voice = { partials: Partial[]; wobbleHz: number };
+
+/**
+ * Each way she hits back sounds like the thing it is — a fist is not a mallet.
+ * These are keyed by the word on the button.
+ */
+export const HIT_VOICES: Record<string, Voice> = {
+  // fist: low, blunt, almost no rattle
+  "POW!":   { partials: [{ wave: "sine", hz: 62, gain: 0.5 },
+                         { wave: "square", hz: 96, gain: 0.22 }], wobbleHz: 6 },
+  // mallet: a deep bonk with a ring on top
+  "BONK!":  { partials: [{ wave: "triangle", hz: 44, gain: 0.5 },
+                         { wave: "sine", hz: 330, gain: 0.16 },
+                         { wave: "sine", hz: 660, gain: 0.07 }], wobbleHz: 3 },
+  // glove: a hard flat slap
+  "SMACK!": { partials: [{ wave: "sawtooth", hz: 150, gain: 0.34 },
+                         { wave: "square", hz: 420, gain: 0.2 },
+                         { wave: "sawtooth", hz: 900, gain: 0.1 }], wobbleHz: 20 },
+  // lightning: thin, fast, electric
+  "ZAP!":   { partials: [{ wave: "square", hz: 1240, gain: 0.14 },
+                         { wave: "square", hz: 1310, gain: 0.12 },
+                         { wave: "sawtooth", hz: 210, gain: 0.22 }], wobbleHz: 42 },
+};
+
+const VOICES: Record<"pain" | "comfort" | "strike", Voice> = {
   pain: {
     partials: [
       { wave: "sawtooth", hz: 58,  gain: 0.30 },   // the motor
@@ -88,12 +113,15 @@ const VOICES: Record<"pain" | "comfort" | "strike", { partials: Partial[]; wobbl
   },
 };
 
-/** Play an on/off millisecond pattern as a tone. Mirrors navigator.vibrate exactly. */
-export function playPattern(pattern: number[], kind: "pain" | "comfort" | "strike") {
+/**
+ * Play an on/off millisecond pattern as a tone. Mirrors navigator.vibrate exactly.
+ * `hit` picks one of the punch voices — otherwise `kind` chooses.
+ */
+export function playPattern(pattern: number[], kind: "pain" | "comfort" | "strike", hit?: string) {
   if (!soundOn()) return;
   const c = ensureCtx();
   if (!c) return;
-  const voice = VOICES[kind];
+  const voice = (hit && HIT_VOICES[hit]) || VOICES[kind];
 
   let at = c.currentTime + 0.01;
   for (let i = 0; i < pattern.length; i += 2) {

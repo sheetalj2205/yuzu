@@ -47,9 +47,11 @@ export function buzzComfort() {
   fire([180, 520, 220, 520, 260], "comfort");
 }
 
-/** She hits back. Each strike carries its own rhythm. */
-export function buzzStrike(pattern: number[]) {
-  fire(pattern, "strike");
+/** She hits back. Each strike carries its own rhythm — and its own sound. */
+export function buzzStrike(pattern: number[], word?: string) {
+  if (canVibrate()) { try { navigator.vibrate(pattern); } catch {} }
+  announce(pattern, "pain");
+  playPattern(pattern, "strike", word);
 }
 
 export function stopBuzz() {

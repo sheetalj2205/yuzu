@@ -110,7 +110,7 @@ export default function Room() {
     ch.on("broadcast", { event: "strike" }, ({ payload }) => {
       if (me !== "him") return;
       const word = String(payload?.word ?? "POW!");
-      buzzStrike((payload?.pattern as number[]) ?? [320, 70, 320]);
+      buzzStrike((payload?.pattern as number[]) ?? [320, 70, 320], word);
       setPow(word);
       setBuzzing(true);
       setTimeout(() => { setBuzzing(false); setPow(null); }, 900);
@@ -133,6 +133,40 @@ export default function Room() {
     const untrack = trackVisibility(ch, { role: me, name: myName });
     return () => { untrack(); chanRef.current = null; sb.removeChannel(ch); };
   }, [sb, roomId, me, meId, myName]);
+
+  /**
+   * Safety net under the broadcast.
+   *
+   * Broadcast is instant but has no replay — anything sent while he was between
+   * page loads, asleep, or off signal is simply gone, and he would sit there
+   * looking at a stale screen until he refreshed. So every few seconds we also
+   * just ask the database what the open cycle is.
+   */
+  useEffect(() => {
+    if (!roomId) return;
+    let stop = false;
+
+    const sync = async () => {
+      if (stop || document.hidden) return;
+      const { data } = await sb.from("cycles").select("*").eq("room_id", roomId)
+        .is("closed_at", null).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (stop) return;
+      setCycle(prev => {
+        const next = (data as Cycle | null) ?? null;
+        if (!next) return prev?.closed_at === undefined && prev ? null : prev && !next ? null : next;
+        // only replace when something actually moved, so we do not fight local state
+        if (!prev || prev.id !== next.id || prev.tries !== next.tries ||
+            JSON.stringify(prev.needs) !== JSON.stringify(next.needs) ||
+            prev.revealed !== next.revealed) return next;
+        return prev;
+      });
+    };
+
+    const id = setInterval(sync, 4000);
+    document.addEventListener("visibilitychange", sync);
+    void sync();
+    return () => { stop = true; clearInterval(id); document.removeEventListener("visibilitychange", sync); };
+  }, [sb, roomId]);
 
   /** Tell the other phone something happened. */
   const say = useCallback((event: string, payload: Record<string, unknown>) => {
