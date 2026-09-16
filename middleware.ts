@@ -8,6 +8,19 @@ import { NextResponse, type NextRequest } from "next/server";
  * user back to the login screen. Calling getUser() here refreshes the token and
  * writes the rotated cookies onto the response.
  */
+
+/**
+ * Keep people signed in.
+ *
+ * Supabase hands us cookie options carrying the ACCESS token's lifetime — an
+ * hour. Writing that verbatim means the browser drops the cookie an hour later
+ * and they are asked to sign in again, even though the refresh token was good
+ * for far longer. So every auth cookie we write is given the longest life a
+ * browser will keep (400 days is the cap). Signing out still clears them.
+ */
+const KEEP = 60 * 60 * 24 * 400;
+const longLived = (o: CookieOptions): CookieOptions => ({ ...o, maxAge: KEEP, path: "/" });
+
 export async function middleware(req: NextRequest) {
   let res = NextResponse.next({ request: req });
 
@@ -20,7 +33,7 @@ export async function middleware(req: NextRequest) {
         setAll: (list: { name: string; value: string; options: CookieOptions }[]) => {
           for (const { name, value } of list) req.cookies.set(name, value);
           res = NextResponse.next({ request: req });
-          for (const { name, value, options } of list) res.cookies.set(name, value, options);
+          for (const { name, value, options } of list) res.cookies.set(name, value, longLived(options));
         },
       },
     },

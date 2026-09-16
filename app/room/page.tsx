@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase, signOut } from "@/lib/supabase-client";
 import { makeCuddleCode } from "@/lib/items";
+import InstallHelp from "@/components/InstallHelp";
 
 export default function RoomGate() {
   const router = useRouter();
@@ -80,10 +81,12 @@ export default function RoomGate() {
           </>
         )}
 
+        <InstallHelp />
+
         {/* the only sign-out in the app, deliberately out of the way */}
         <button
           onClick={signOut}
-          className="mt-10 text-inkFaint text-xs underline underline-offset-4"
+          className="mt-4 text-inkFaint text-xs underline underline-offset-4"
         >
           Sign out
         </button>
