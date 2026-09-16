@@ -33,12 +33,13 @@ export default function RoomGate() {
   }, [router]);
 
   const join = async () => {
+    setErr("");
     const sb = supabase();
-    const { data: { user } } = await sb.auth.getUser();
-    const wanted = typed.trim().toUpperCase();
-    const { data: room } = await sb.from("rooms").select("id, code").eq("code", wanted).maybeSingle();
+    // goes through join_room() — he cannot see a room until he is in it
+    const { data, error } = await sb.rpc("join_room", { p_code: typed.trim().toUpperCase() });
+    if (error) return setErr(error.message);
+    const room = Array.isArray(data) ? data[0] : data;
     if (!room) return setErr("No room with that Cuddle Code 🥺");
-    await sb.from("rooms").update({ him_id: user!.id }).eq("id", room.id);
     router.push(`/room/${room.code}`);
   };
 

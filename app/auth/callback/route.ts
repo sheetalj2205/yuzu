@@ -27,5 +27,12 @@ export async function GET(req: Request) {
     return NextResponse.redirect(`${origin}/?error=${encodeURIComponent(error.message)}`);
   }
 
+  // already onboarded? go straight to the room, not back through "which one are you"
+  const { data: { user } } = await sb.auth.getUser();
+  if (user) {
+    const { data: profile } = await sb.from("profiles").select("gender").eq("id", user.id).maybeSingle();
+    if (profile?.gender) return NextResponse.redirect(`${origin}/room`);
+  }
+
   return NextResponse.redirect(`${origin}${next}`);
 }
