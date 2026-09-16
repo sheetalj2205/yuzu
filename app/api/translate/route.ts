@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { buildPrompt, fallback, normalise } from "@/lib/translate";
 import { cacheGet, cacheKey, cacheSet } from "@/lib/cache";
 
-export const runtime = "edge";   // fast + cheap on Vercel
+export const runtime = "nodejs";   // edge runtime is deprecated as of Next 16
 
 /**
  * Her words in → a buzz pattern, every need she mentioned, and his hints out.
@@ -63,7 +63,8 @@ export async function POST(req: Request) {
    * "gemini-flash-latest" follows whatever is current; the pinned one behind it
    * is the safety net. Override with a comma-separated GEMINI_MODEL if you like.
    */
-  const models = (process.env.GEMINI_MODEL ?? "gemini-flash-latest,gemini-3.5-flash")
+  const models = (process.env.GEMINI_MODEL
+    ?? "gemini-3.5-flash-lite,gemini-3.5-flash,gemini-flash-latest")
     .split(",").map(m => m.trim()).filter(Boolean);
 
   if (!key) {
@@ -86,9 +87,20 @@ export async function POST(req: Request) {
               temperature: 0.4,
               responseMimeType: "application/json",
               responseSchema: RESPONSE_SCHEMA,
+              /**
+               * Gemini 3.x reasons before answering, which costs 6+ seconds on a
+               * task that is really classification plus three short lines. Turning
+               * it off took 8.3s down to 2.3s with no loss in quality.
+               *
+               * The "-lite" models have no thinking to disable and reject the
+               * option outright with a 400, so they do not get it.
+               */
+              ...(model.includes("lite") ? {} : { thinkingConfig: { thinkingBudget: 0 } }),
             },
           }),
-          signal: AbortSignal.timeout(15_000),
+          // 12s was a real measured response time before thinking was disabled —
+          // leave generous headroom so a slow answer is not thrown away.
+          signal: AbortSignal.timeout(25_000),
         },
       );
 
