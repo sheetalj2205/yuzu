@@ -170,8 +170,21 @@ Prompt: `lib/translate.ts`. Route: `app/api/translate/route.ts`.
 **Three providers, tried in order, and the last one cannot fail:**
 
 1. **BullsAI** — `ALT_AI_BASE_URL`, `ALT_AI_API_KEY`, `ALT_AI_MODEL`
+   (a comma-separated list, tried in order)
 2. **Gemini** — `GEMINI_API_KEY`, `GEMINI_MODEL` (itself a comma-separated chain)
 3. **Built-in rules** — no keys, no network, always works
+
+Measured on the real prompt, same sentence each time:
+
+| model | time | hints |
+|---|---|---|
+| `google/gemma-4-31B-it` | **1.7s** | flat — *"Temperature is too low"* |
+| `zai-org/GLM-5.3-Flash` | 11.7s | much better — *"It sits deeper than her skin"* |
+| `zai-org/GLM-4.7-Flash` | times out | unusable on a prompt this long |
+| Gemini `3.5-flash-lite` | 1.2s | good — *"Wrap her up tightly right now"* |
+
+Default is speed first. If you would rather have the better writing and can live
+with a ~12s wait, put `zai-org/GLM-5.3-Flash` first in `ALT_AI_MODEL`.
 
 Any provider left unconfigured is skipped. Gemini returned 503 "high demand"
 several times during one afternoon of testing, which is exactly why this is a

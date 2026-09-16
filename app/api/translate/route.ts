@@ -45,35 +45,45 @@ const RESPONSE_SCHEMA = {
 
 type Attempt = { ok: true; value: Translation } | { ok: false; why: string };
 
-/** BullsAI — OpenAI chat-completions shape. */
+/**
+ * BullsAI — OpenAI chat-completions shape.
+ *
+ * ALT_AI_MODEL takes a comma-separated list, tried in order, same as Gemini.
+ * Put the one that writes best first and a fast one behind it: a gateway
+ * hosting many models will have some of them busy at any given moment.
+ */
 async function tryBullsAI(prompt: string, level: number): Promise<Attempt> {
-  const base  = process.env.ALT_AI_BASE_URL;
-  const key   = process.env.ALT_AI_API_KEY;
-  const model = process.env.ALT_AI_MODEL;
-  if (!base || !key || !model) return { ok: false, why: "bullsai not configured" };
+  const base = process.env.ALT_AI_BASE_URL;
+  const key  = process.env.ALT_AI_API_KEY;
+  const models = (process.env.ALT_AI_MODEL ?? "").split(",").map(m => m.trim()).filter(Boolean);
+  if (!base || !key || !models.length) return { ok: false, why: "bullsai not configured" };
 
-  try {
-    const res = await fetch(`${base.replace(/\/$/, "")}/chat/completions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model,
-        temperature: 0.4,
-        response_format: { type: "json_object" },
-        messages: [{ role: "user", content: prompt }],
-      }),
-      signal: AbortSignal.timeout(25_000),
-    });
-    if (!res.ok) return { ok: false, why: `bullsai ${res.status}` };
+  let why = "no bullsai models tried";
+  for (const model of models) {
+    try {
+      const res = await fetch(`${base.replace(/\/$/, "")}/chat/completions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+        body: JSON.stringify({
+          model,
+          temperature: 0.4,
+          response_format: { type: "json_object" },
+          messages: [{ role: "user", content: prompt }],
+        }),
+        signal: AbortSignal.timeout(25_000),
+      });
+      if (!res.ok) { why = `${model} → ${res.status}`; continue; }
 
-    const data = await res.json();
-    const text = data?.choices?.[0]?.message?.content;
-    if (!text) return { ok: false, why: "bullsai returned no text" };
+      const data = await res.json();
+      const text = data?.choices?.[0]?.message?.content;
+      if (!text) { why = `${model} → empty`; continue; }
 
-    return { ok: true, value: normalise(JSON.parse(text), level) };
-  } catch (err) {
-    return { ok: false, why: `bullsai ${(err as Error).message}` };
+      return { ok: true, value: normalise(JSON.parse(text), level) };
+    } catch (err) {
+      why = `${model} → ${(err as Error).message}`;
+    }
   }
+  return { ok: false, why };
 }
 
 /**
