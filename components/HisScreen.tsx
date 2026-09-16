@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ITEMS, FAVE_EMOJI } from "@/lib/items";
 import { MAX_TRIES } from "@/lib/types";
 import type { Item } from "@/lib/types";
+import type { PushState } from "@/lib/push";
 
 /**
  * HIS PHONE. Rule: he sees a hint and a drawer. Never her words —
@@ -10,7 +11,7 @@ import type { Item } from "@/lib/types";
  */
 export default function HisScreen({
   partnerName, hint, tries, unmetCount, revealedMessage, buzzing, custom,
-  onSend, onAddFavourite,
+  push, onSend, onAddFavourite, onEnablePush,
 }: {
   partnerName: string | null;
   hint: string | null;
@@ -19,6 +20,8 @@ export default function HisScreen({
   revealedMessage: string | null;
   buzzing: boolean;
   custom: Item[];
+  push: PushState;
+  onEnablePush: () => void;
   onSend: (item: Item) => void;
   onAddFavourite: (emoji: string, name: string) => void;
 }) {
@@ -33,6 +36,23 @@ export default function HisScreen({
         <p className="text-center text-sm text-inkSoft text-balance mt-6">
           You&apos;re in <b className="text-ink">{partnerName ?? "her"}</b>&apos;s room.
           Now feel her pain and calm her down ♡
+        </p>
+      )}
+
+      {/* The one thing that makes this work when he walks away. Asked once,
+          at the moment he joins, before there is anything else on screen. */}
+      {push === "prompt" && (
+        <button onClick={onEnablePush}
+          className="card border-pain bg-painSoft text-center active:translate-y-[2px]">
+          <p className="font-round font-black text-sm text-pain">Let her reach you 🔔</p>
+          <p className="text-inkSoft text-xs mt-1">
+            So your phone still buzzes when Yuzu is closed.
+          </p>
+        </button>
+      )}
+      {push === "denied" && (
+        <p className="text-center text-inkFaint text-xs">
+          Notifications are blocked, so she can only reach you while this is open.
         </p>
       )}
 

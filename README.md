@@ -37,10 +37,29 @@ npm install
    - `https://YOUR-APP.vercel.app/auth/callback`
 5. **Settings → API** → copy the Project URL and the `anon` key
 
-### 3. Gemini (the AI)
+### 3. Web Push (buzz him with the app closed)
+
+Run `supabase/003_push.sql` in the SQL Editor, then add to `.env.local`:
+
+```bash
+node -e "console.log(require('web-push').generateVAPIDKeys())"
+```
+
+`NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT=mailto:you@…`.
+
+You also need **`SUPABASE_SERVICE_ROLE_KEY`** (Settings → API). This one is
+server-only — it must NOT be prefixed `NEXT_PUBLIC_`. The send route uses it to
+read the *other* person's push subscription, which row-level security rightly
+forbids everyone else from doing.
+
+> Android honours the custom vibration pattern. iPhone needs iOS 16.4+ **and the
+> app installed to the home screen**, and buzzes with the system default rather
+> than our rhythm.
+
+### 4. Gemini (the AI)
 Free key: **https://aistudio.google.com/apikey**
 
-### 4. Fill in your keys
+### 5. Fill in your keys
 ```bash
 cp .env.example .env.local
 ```
@@ -52,14 +71,14 @@ GEMINI_API_KEY=AIza...
 GEMINI_MODEL=gemini-flash-latest
 ```
 
-### 5. Start it
+### 6. Start it
 ```bash
 npm run dev
 ```
 
 Open **http://localhost:3000**.
 
-### 6. Test with two phones
+### 7. Test with two phones
 Find your laptop's IP:
 ```bash
 ipconfig getifaddr en0

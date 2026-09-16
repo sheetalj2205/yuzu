@@ -6,6 +6,7 @@ import { buzzComfort, buzzPain, buzzStrike, startBuzzLoop, stopBuzz } from "@/li
 import { hintFor, score as scoreOf, tickOff, unmet } from "@/lib/translate";
 import { cue } from "@/lib/sound";
 import { readPartner, trackVisibility, type Presence } from "@/lib/presence";
+import { enablePush, pushState, type PushState } from "@/lib/push";
 import { MAX_TRIES, type Item, type Need, type Pattern } from "@/lib/types";
 import HerScreen, { HITS, type Gift } from "@/components/HerScreen";
 import HisScreen from "@/components/HisScreen";
@@ -34,6 +35,7 @@ export default function Room() {
   const [myName, setMyName]     = useState<string>("");
   const [partnerAt, setPartnerAt] = useState<Presence>("gone");
   const [leftCount, setLeftCount] = useState(0);
+  const [push, setPush]         = useState<PushState>("unsupported");
   const stopLoop = useRef<null | (() => void)>(null);
   const cycleRef = useRef<Cycle | null>(null);
 
@@ -48,6 +50,7 @@ export default function Room() {
       setMe(p.gender);
       setMeId(user.id);
       setMyName(p.name ?? "Someone");
+      setPush(pushState());
 
       const { data: room } = await sb.from("rooms").select("id, her_id, him_id").eq("code", code).single();
       if (!room) return router.push("/room");
@@ -147,6 +150,22 @@ export default function Room() {
   }, [me, cycle]);
   useEffect(() => () => stopBuzz(), []);
 
+  /** Buzz the other phone through the OS — works even with the app closed. */
+  const pushPartner = useCallback(async (title: string, body: string, vibrate: number[], tag: string) => {
+    if (!roomId) return;
+    try {
+      await fetch("/api/push", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roomId, title, body, vibrate, tag }),
+      });
+    } catch { /* the in-app buzz still runs; push is the bonus */ }
+  }, [roomId]);
+
+  const turnOnPush = useCallback(async () => {
+    if (!meId) return;
+    setPush(await enablePush(sb, meId));
+  }, [sb, meId]);
+
   /* ---------------- she sends ---------------- */
   const send = useCallback(async (message: string, intensity: number) => {
     if (!roomId) return;
@@ -163,7 +182,13 @@ export default function Room() {
     }).select().single();
     if (data) setCycle(data as Cycle);
     setGifts([]);
-  }, [sb, roomId]);
+    void pushPartner(
+      "She's in pain",
+      `${t.label} — ${t.needs.length} ${t.needs.length === 1 ? "thing" : "things"} she needs.`,
+      [400, 150, 400, 150, 400],
+      "yuzu-cramp",
+    );
+  }, [sb, roomId, pushPartner]);
 
   /* ---------------- he sends ---------------- */
   const sendGift = useCallback(async (item: Item) => {
@@ -191,6 +216,8 @@ export default function Room() {
 
     if (!helped) {
       cue("wrong");
+      void pushPartner("Not that.", "She said it didn't help. Try something else.",
+                       [200, 80, 200, 80, 200, 80, 400], "yuzu-nope");
       // "not really" → his phone goes off again, right now
       await sb.from("cycles").update({ tries: cycle.tries }).eq("id", cycle.id);
       setCycle({ ...cycle });
@@ -205,7 +232,7 @@ export default function Room() {
       needs, closed_at: done ? new Date().toISOString() : null,
     }).eq("id", cycle.id);
     setCycle({ ...cycle, needs, closed_at: done ? new Date().toISOString() : null });
-  }, [sb, cycle, incoming]);
+  }, [sb, cycle, incoming, pushPartner]);
 
   /* he failed — she hits back, and every hit fires his phone */
   const strike = useCallback(async (hit: typeof HITS[number]) => {
@@ -214,7 +241,8 @@ export default function Room() {
     await sb.from("gifts").insert({
       cycle_id: cycle.id, emoji: hit.emoji, name: hit.word, tag: "strike",
     });
-  }, [sb, cycle]);
+    void pushPartner(hit.word, "She's had enough.", hit.pattern, "yuzu-strike");
+  }, [sb, cycle, pushPartner]);
 
   const forgive = useCallback(async () => {
     if (!cycle) return;
@@ -254,6 +282,8 @@ export default function Room() {
       revealedMessage={cycle?.revealed ? cycle.message : null}
       buzzing={buzzing}
       custom={custom}
+      push={push}
+      onEnablePush={turnOnPush}
       onSend={sendGift}
       onAddFavourite={addFavourite}
     />
