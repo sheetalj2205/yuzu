@@ -29,6 +29,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
+        {/* Next emits the modern "mobile-web-app-capable", but iOS Safari still
+            only honours this legacy one. Without it iOS saves a bookmark that
+            opens in browser chrome instead of as an app. */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link

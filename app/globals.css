@@ -30,9 +30,11 @@ body {
 @keyframes pop { from { transform: scale(0) rotate(-30deg); opacity: 0 }
                  to   { transform: scale(1) rotate(0);      opacity: 1 } }
 .pop { animation: pop .55s cubic-bezier(.2,1.6,.4,1) both; }
+/* A nudge, not an earthquake. The phone is already vibrating in his hand —
+   the screen only needs to agree with it, not compete. */
 @keyframes shake {
-  0%,100% { transform: translate(0,0) } 25% { transform: translate(-3px,1px) }
-  50% { transform: translate(3px,-2px) } 75% { transform: translate(-2px,-1px) }
+  0%,100% { transform: translate(0,0) } 25% { transform: translate(-1px,0) }
+  50% { transform: translate(1px,-1px) } 75% { transform: translate(-1px,0) }
 }
-.shake { animation: shake .45s linear infinite; }
+.shake { animation: shake .7s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .shake { animation: none; outline: 3px solid #E5326E } }

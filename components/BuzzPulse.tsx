@@ -51,14 +51,14 @@ export default function BuzzPulse() {
     <>
       <div
         aria-hidden
-        className="fixed inset-0 z-[60] pointer-events-none transition-opacity duration-75"
+        className="fixed inset-0 z-[60] pointer-events-none transition-opacity duration-150"
         style={{
           opacity: flash ? 1 : 0,
-          background: flash === "comfort"
-            ? "radial-gradient(circle at 50% 50%, rgba(249,139,160,.42), rgba(249,139,160,0) 72%)"
-            : "radial-gradient(circle at 50% 50%, rgba(229,50,110,.5), rgba(229,50,110,0) 70%)",
+          // a glow at the edges, not a strobe across the whole screen
+          background: "transparent",
           boxShadow: flash
-            ? `inset 0 0 0 10px ${flash === "comfort" ? "rgba(249,139,160,.75)" : "rgba(229,50,110,.85)"}`
+            ? `inset 0 0 90px 12px ${flash === "comfort"
+                ? "rgba(249,139,160,.45)" : "rgba(229,50,110,.5)"}`
             : "none",
         }}
       />
