@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { BUZZ_EVENT, canVibrate, setSound, soundOn } from "@/lib/haptics";
+import { BUZZ_EVENT, canVibrate } from "@/lib/haptics";
+import { setSound, soundOn } from "@/lib/sound";
 
 /**
  * What an iPhone gets instead of a vibration.
@@ -59,16 +60,19 @@ export default function BuzzPulse() {
         }}
       />
 
-      {noMotor && (
-        <button
-          onClick={() => { const next = !sound; setSound(next); setSoundState(next); }}
-          className="fixed right-3 top-3 z-[61] rounded-full bg-surface border-2 border-line
-                     px-3 py-1.5 text-xs font-round font-bold text-inkSoft shadow-sm"
-          title="Your phone can't vibrate — sound is the next best thing"
-        >
-          {sound ? "🔊 sound on" : "🔇 sound off"}
-        </button>
-      )}
+      <button
+        onClick={() => { const next = !sound; setSound(next); setSoundState(next); }}
+        aria-pressed={sound}
+        className={`fixed right-3 top-3 z-[61] rounded-full border-2 px-3 py-1.5 text-xs
+                    font-round font-bold shadow-sm transition
+                    ${sound ? "bg-pain border-pain text-white" : "bg-surface border-line text-inkSoft"}`}
+        title={noMotor
+          ? "Your phone can't vibrate — sound is the next best thing"
+          : "Hear the buzz as well as feel it"}
+        style={{ top: "calc(0.75rem + env(safe-area-inset-top, 0px))" }}
+      >
+        {sound ? "🔊 sound on" : "🔇 sound off"}
+      </button>
     </>
   );
 }

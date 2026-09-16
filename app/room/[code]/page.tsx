@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase-client";
 import { buzzComfort, buzzPain, buzzStrike, startBuzzLoop, stopBuzz } from "@/lib/haptics";
 import { hintFor, score as scoreOf, tickOff, unmet } from "@/lib/translate";
+import { cue } from "@/lib/sound";
 import { MAX_TRIES, type Item, type Need, type Pattern } from "@/lib/types";
 import HerScreen, { HITS, type Gift } from "@/components/HerScreen";
 import HisScreen from "@/components/HisScreen";
@@ -80,7 +81,7 @@ export default function Room() {
             }
             return;
           }
-          if (me === "her") { setIncoming(g); buzzComfort(); }   // HER phone: soft, warm
+          if (me === "her") { setIncoming(g); cue("arrive"); buzzComfort(); }  // HER phone: soft, warm
         })
       .subscribe();
     return () => { sb.removeChannel(ch); };
@@ -143,6 +144,7 @@ export default function Room() {
     setIncoming(null);
 
     if (!helped) {
+      cue("wrong");
       // "not really" → his phone goes off again, right now
       await sb.from("cycles").update({ tries: cycle.tries }).eq("id", cycle.id);
       setCycle({ ...cycle });
@@ -152,6 +154,7 @@ export default function Room() {
     setGifts(g => [...g, gift]);                       // it stays in her room
     const needs = tickOff(cycle.needs.map(n => ({ ...n })), gift.tag);
     const done  = unmet(needs).length === 0;
+    if (done) cue("win");
     await sb.from("cycles").update({
       needs, closed_at: done ? new Date().toISOString() : null,
     }).eq("id", cycle.id);

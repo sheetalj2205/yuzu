@@ -1,5 +1,6 @@
 "use client";
 import type { Pattern } from "./types";
+import { playPattern } from "./sound";
 
 /**
  * Haptics, with an honest iPhone story.
@@ -7,8 +8,8 @@ import type { Pattern } from "./types";
  * Android Chrome has navigator.vibrate and gets the real thing.
  * iOS Safari has never shipped the Vibration API — there is no flag, no
  * permission, no polyfill. So on iPhone we render the buzz instead of feeling
- * it: the screen pulses to the same rhythm and, if the user turns sound on, a
- * low tone plays through the speaker. Not as good. Far better than nothing.
+ * it: the screen pulses to the same rhythm, and sound (lib/sound.ts) carries
+ * the same pattern through the speaker. Not as good. Far better than nothing.
  */
 
 export const canVibrate = () =>
@@ -24,48 +25,12 @@ function announce(pattern: number[], kind: "pain" | "comfort") {
   window.dispatchEvent(new CustomEvent(BUZZ_EVENT, { detail: { pattern, kind } }));
 }
 
-/* ---------------- optional sound (iPhone's only real signal) ---------------- */
-
-const SOUND_KEY = "yuzu-sound";
-export const soundOn = () => {
-  try { return localStorage.getItem(SOUND_KEY) === "1"; } catch { return false; }
-};
-export const setSound = (on: boolean) => {
-  try { localStorage.setItem(SOUND_KEY, on ? "1" : "0"); } catch {}
-};
-
-let ctx: AudioContext | null = null;
-function tone(pattern: number[], kind: "pain" | "comfort") {
-  if (!soundOn() || typeof window === "undefined") return;
-  try {
-    const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    ctx ??= new AC();
-    if (ctx.state === "suspended") void ctx.resume();
-
-    let at = ctx.currentTime;
-    for (let i = 0; i < pattern.length; i += 2) {
-      const on = pattern[i] / 1000, off = (pattern[i + 1] ?? 0) / 1000;
-      const osc = ctx.createOscillator(), gain = ctx.createGain();
-      // pain = hard and buzzy; comfort = low and round
-      osc.type = kind === "pain" ? "square" : "sine";
-      osc.frequency.value = kind === "pain" ? 68 : 44;
-      gain.gain.setValueAtTime(0, at);
-      gain.gain.linearRampToValueAtTime(kind === "pain" ? 0.5 : 0.28, at + 0.012);
-      gain.gain.setValueAtTime(kind === "pain" ? 0.5 : 0.28, at + on - 0.02);
-      gain.gain.linearRampToValueAtTime(0, at + on);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start(at); osc.stop(at + on);
-      at += on + off;
-    }
-  } catch { /* audio blocked — the visual pulse still runs */ }
-}
-
 /* ---------------- the buzzes ---------------- */
 
-function fire(pattern: number[], kind: "pain" | "comfort") {
+function fire(pattern: number[], kind: "pain" | "comfort" | "strike") {
   if (canVibrate()) { try { navigator.vibrate(pattern); } catch {} }
-  announce(pattern, kind);   // always — the pulse runs on every device
-  tone(pattern, kind);
+  announce(pattern, kind === "strike" ? "pain" : kind);  // pulse runs on every device
+  playPattern(pattern, kind);                            // silent unless sound is on
 }
 
 /** HER cramp on HIS phone: short, hard, jabbing. */
@@ -84,7 +49,7 @@ export function buzzComfort() {
 
 /** She hits back. Each strike carries its own rhythm. */
 export function buzzStrike(pattern: number[]) {
-  fire(pattern, "pain");
+  fire(pattern, "strike");
 }
 
 export function stopBuzz() {

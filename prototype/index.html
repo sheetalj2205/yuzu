@@ -157,12 +157,18 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:99px;ba
     rgba(255,150,180,.55) 26%, rgba(255,150,180,0) 58%);
   animation:burst .55s ease-out both}
 @keyframes burst{0%{opacity:0;transform:scale(.4)}35%{opacity:1}100%{opacity:0;transform:scale(1.25)}}
+.sndbtn{position:fixed; right:14px; top:14px; z-index:70; cursor:pointer;
+  font-family:"Zen Maru Gothic",sans-serif; font-weight:700; font-size:12px;
+  border:2px solid var(--line); background:var(--surface); color:var(--inkSoft);
+  border-radius:99px; padding:7px 13px; box-shadow:var(--shadow)}
+.sndbtn[aria-pressed=true]{background:var(--pain); border-color:var(--pain); color:#fff}
 .note{max-width:66ch; margin:34px auto 0; color:var(--inkSoft); font-size:13.5px; text-align:center}
 .note b{color:var(--ink)}
 </style>
 </head>
 <body>
 <div class="wrap">
+  <button id="snd" class="sndbtn" type="button" aria-pressed="false">🔇 sound off</button>
   <h1><span class="a">Pain travels one way.</span><br><span class="b">Comfort travels back ✿</span></h1>
   <p class="sub">Two phones. She writes. He guesses. Only she can make it stop.</p>
 
@@ -392,15 +398,76 @@ var scoreNow=function(){
   return u===0?0:Math.round(S.intensity*10*u/S.needs.length);
 };
 
+/* ---------------- sound: the annoying voice ---------------- */
+var SND=false, actx=null;
+function ac(){
+  try{
+    var AC=window.AudioContext||window.webkitAudioContext; if(!AC) return null;
+    if(!actx) actx=new AC();
+    if(actx.state==="suspended") actx.resume();
+    return actx;
+  }catch(e){return null}
+}
+/* two oscillators a few Hz apart beat against each other — that wobble is what
+   the ear cannot tune out. Comfort gets none of it, on purpose. */
+var VOICES={
+  pain:  {p:[["square",68,.34],["square",71.5,.30],["sawtooth",1180,.05]], wob:11},
+  strike:{p:[["sawtooth",92,.36],["sawtooth",97,.32],["square",1480,.06]], wob:16},
+  comfort:{p:[["sine",44,.26],["sine",88,.07]], wob:0}
+};
+function playPattern(pat,kind){
+  if(!SND) return; var c=ac(); if(!c) return;
+  var v=VOICES[kind]||VOICES.pain, at=c.currentTime+.01;
+  for(var i=0;i<pat.length;i+=2){
+    var on=pat[i]/1000, off=(pat[i+1]||0)/1000;
+    if(on<=0){at+=off;continue}
+    var bus=c.createGain();
+    bus.gain.setValueAtTime(0,at);
+    bus.gain.linearRampToValueAtTime(1,at+.008);
+    bus.gain.setValueAtTime(1,Math.max(at+.009,at+on-.02));
+    bus.gain.linearRampToValueAtTime(0,at+on);
+    bus.connect(c.destination);
+    if(v.wob){
+      var lfo=c.createOscillator(), d=c.createGain();
+      lfo.type="square"; lfo.frequency.value=v.wob; d.gain.value=.3;
+      lfo.connect(d).connect(bus.gain); lfo.start(at); lfo.stop(at+on+.02);
+    }
+    v.p.forEach(function(o){
+      var osc=c.createOscillator(), g=c.createGain();
+      osc.type=o[0]; osc.frequency.value=o[1]; g.gain.value=o[2];
+      osc.connect(g).connect(bus); osc.start(at); osc.stop(at+on+.02);
+    });
+    at+=on+off;
+  }
+}
+var CUES={arrive:[[784,0,.13],[1046,.1,.22]],
+          win:[[523,0,.16],[659,.14,.16],[784,.28,.42]],
+          wrong:[[220,0,.1],[175,.09,.2]]};
+function cue(name){
+  if(!SND) return; var c=ac(); if(!c) return;
+  CUES[name].forEach(function(n){
+    var at=c.currentTime+.01+n[1], osc=c.createOscillator(), g=c.createGain();
+    osc.type="triangle"; osc.frequency.value=n[0];
+    g.gain.setValueAtTime(0,at);
+    g.gain.linearRampToValueAtTime(name==="wrong"?.18:.14,at+.015);
+    g.gain.exponentialRampToValueAtTime(.0001,at+n[2]);
+    osc.connect(g).connect(c.destination); osc.start(at); osc.stop(at+n[2]+.02);
+  });
+}
+
 /* ---------------- haptics ---------------- */
 function buzzPain(p){
-  if(!navigator.vibrate) return;
   var on=Math.round(p.pulse_ms*(p.envelope==="stab"?.16:.5)*p.peak),
       off=Math.max(70,p.pulse_ms-on),pat=[];
   for(var i=0;i<5;i++) pat.push(Math.max(45,on),off);
   try{navigator.vibrate(pat)}catch(e){}
+  playPattern(pat,"pain");
 }
-function buzzComfort(){try{navigator.vibrate([180,520,220,520,260])}catch(e){}}
+function buzzComfort(){
+  var pat=[180,520,220,520,260];
+  try{navigator.vibrate(pat)}catch(e){}
+  playPattern(pat,"comfort");
+}
 function shakeHim(ms){
   $("his-phone").classList.add("shake");
   setTimeout(function(){$("his-phone").classList.remove("shake")},ms||800);
@@ -615,7 +682,7 @@ function give(it,btn){
     $("her-wait").hidden=true;
     $("g-emoji").textContent=it.emoji; $("g-name").textContent=it.name;
     $("her-gift").hidden=false;
-    buzzComfort();
+    cue("arrive"); buzzComfort();
   },780);
   hisView();
 }
@@ -626,7 +693,7 @@ function verdict(helped){
 
   if(!helped){
     // her "not really" fires his phone again, immediately
-    buzzPain(S.pattern); shakeHim(900);
+    cue("wrong"); buzzPain(S.pattern); shakeHim(900);
     $("her-wait").hidden=false; $("her-wait").textContent="You said no. His phone went off again.";
     finishTurn(); return;
   }
@@ -644,7 +711,7 @@ function verdict(helped){
     $("done-sub").textContent="All "+S.needs.length+(S.needs.length===1?" thing":" things")+
       " she asked for, done in "+S.tries+(S.tries===1?" try.":" tries.");
     $("her-wait").hidden=true;
-    buzzComfort();
+    cue("win"); buzzComfort();
   }else{
     $("her-wait").hidden=false;
     $("her-wait").textContent="That helped. "+unmet().length+" still wrong.";
@@ -682,6 +749,7 @@ function pow(hit){
 function strike(hit){
   S.hits+=1;
   try{navigator.vibrate(hit.pattern)}catch(e){}
+  playPattern(hit.pattern,"strike");
   pow(hit); shakeHim(760);
   $("hits").hidden=false;
   $("hits").textContent=S.hits<5
@@ -721,6 +789,11 @@ $("join").onclick=function(){
   $("her-joined").innerHTML="<b>Kabir</b> joined to feel your pain and make it better ♡";
   $("his-joined").innerHTML="You&rsquo;re in <b>Meera</b>&rsquo;s room. Now feel her pain and calm her down ♡";
   scene(); hisView();
+};
+$("snd").onclick=function(){
+  SND=!SND; this.setAttribute("aria-pressed",String(SND));
+  this.textContent=SND?"🔊 sound on":"🔇 sound off";
+  if(SND){ ac(); cue("arrive"); }     // click is the gesture browsers require
 };
 $("codein").value="PLUM42";
 if(window.claude&&typeof window.claude.use==="function"){
