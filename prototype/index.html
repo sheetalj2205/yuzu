@@ -162,6 +162,11 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:99px;ba
   border:2px solid var(--line); background:var(--surface); color:var(--inkSoft);
   border-radius:99px; padding:7px 13px; box-shadow:var(--shadow)}
 .sndbtn[aria-pressed=true]{background:var(--pain); border-color:var(--pain); color:#fff}
+.styles{position:fixed; right:14px; top:54px; z-index:70; display:flex; flex-direction:column; gap:5px}
+.styles button{cursor:pointer; font-family:"Zen Maru Gothic",sans-serif; font-weight:700;
+  font-size:11px; border:2px solid var(--line); background:var(--surface); color:var(--inkSoft);
+  border-radius:99px; padding:5px 12px; box-shadow:var(--shadow)}
+.styles button[aria-pressed=true]{background:var(--lav); border-color:var(--lav); color:#fff}
 .note{max-width:66ch; margin:34px auto 0; color:var(--inkSoft); font-size:13.5px; text-align:center}
 .note b{color:var(--ink)}
 </style>
@@ -169,6 +174,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:99px;ba
 <body>
 <div class="wrap">
   <button id="snd" class="sndbtn" type="button" aria-pressed="false">🔇 sound off</button>
+  <div class="styles" id="styles" hidden></div>
   <h1><span class="a">Pain travels one way.</span><br><span class="b">Comfort travels back ✿</span></h1>
   <p class="sub">Two phones. She writes. He guesses. Only she can make it stop.</p>
 
@@ -410,14 +416,38 @@ function ac(){
 }
 /* two oscillators a few Hz apart beat against each other — that wobble is what
    the ear cannot tune out. Comfort gets none of it, on purpose. */
-var VOICES={
-  pain:  {p:[["square",68,.34],["square",71.5,.30],["sawtooth",1180,.05]], wob:11},
-  strike:{p:[["sawtooth",92,.36],["sawtooth",97,.32],["square",1480,.06]], wob:16},
-  comfort:{p:[["sine",44,.26],["sine",88,.07]], wob:0}
+/* Four characters for the pain buzz. Pick one with the switcher, top right.
+   The knobs: partials (wave, Hz, gain) and wob = amplitude wobble in Hz.
+   Two oscillators a few Hz apart beat against each other — that is what makes
+   a sound nag instead of drone. Comfort deliberately has none of it. */
+var STYLES={
+  alarm:{                                   // cheap alarm clock. harsh, electronic.
+    pain:  {p:[["square",68,.34],["square",71.5,.30],["sawtooth",1180,.05]], wob:11},
+    strike:{p:[["sawtooth",92,.36],["sawtooth",97,.32],["square",1480,.06]], wob:16}
+  },
+  rattle:{                                  // a real phone buzzing on a hard table.
+    pain:  {p:[["sawtooth",58,.30],["square",174,.20],["triangle",232,.12]], wob:27},
+    strike:{p:[["sawtooth",74,.34],["square",210,.22],["triangle",300,.13]], wob:33}
+  },
+  throb:{                                   // organic, thudding. less machine, more body.
+    pain:  {p:[["sine",52,.42],["sine",78,.16],["triangle",104,.07]], wob:4},
+    strike:{p:[["sine",70,.46],["sine",105,.18],["triangle",140,.08]], wob:6}
+  },
+  siren:{                                   // piercing. the most annoying one.
+    pain:  {p:[["square",840,.13],["square",884,.12],["sawtooth",62,.24]], wob:7},
+    strike:{p:[["square",1020,.14],["square",1074,.13],["sawtooth",80,.26]], wob:9}
+  }
 };
+var STYLE="rattle";   // auditioned all four; rattle matches the video
+var COMFORT={p:[["sine",44,.26],["sine",88,.07]], wob:0};   // never changes
+function voiceFor(kind){
+  if(kind==="comfort") return COMFORT;
+  return STYLES[STYLE][kind] || STYLES[STYLE].pain;
+}
+
 function playPattern(pat,kind){
   if(!SND) return; var c=ac(); if(!c) return;
-  var v=VOICES[kind]||VOICES.pain, at=c.currentTime+.01;
+  var v=voiceFor(kind), at=c.currentTime+.01;
   for(var i=0;i<pat.length;i+=2){
     var on=pat[i]/1000, off=(pat[i+1]||0)/1000;
     if(on<=0){at+=off;continue}
@@ -790,10 +820,26 @@ $("join").onclick=function(){
   $("his-joined").innerHTML="You&rsquo;re in <b>Meera</b>&rsquo;s room. Now feel her pain and calm her down ♡";
   scene(); hisView();
 };
+var DEMO_PAT=[300,120,300,120,300];    // what you hear when auditioning a style
+function buildStyles(){
+  var box=$("styles"); box.innerHTML="";
+  Object.keys(STYLES).forEach(function(name){
+    var b=document.createElement("button"); b.type="button"; b.textContent=name;
+    b.setAttribute("aria-pressed",String(name===STYLE));
+    b.onclick=function(){
+      STYLE=name;
+      Array.prototype.forEach.call(box.children,function(c){
+        c.setAttribute("aria-pressed",String(c.textContent===name))});
+      playPattern(DEMO_PAT,"pain");     // hear it immediately
+    };
+    box.appendChild(b);
+  });
+}
 $("snd").onclick=function(){
   SND=!SND; this.setAttribute("aria-pressed",String(SND));
   this.textContent=SND?"🔊 sound on":"🔇 sound off";
-  if(SND){ ac(); cue("arrive"); }     // click is the gesture browsers require
+  $("styles").hidden=!SND;
+  if(SND){ ac(); buildStyles(); playPattern(DEMO_PAT,"pain"); }  // click = the gesture browsers need
 };
 $("codein").value="PLUM42";
 if(window.claude&&typeof window.claude.use==="function"){

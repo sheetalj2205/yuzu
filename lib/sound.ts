@@ -46,27 +46,39 @@ function ensureCtx(): AudioContext | null {
  */
 type Partial = { wave: OscillatorType; hz: number; gain: number };
 
+/**
+ * A voice is a stack of partials plus an amplitude wobble.
+ *
+ * pain/strike are "rattle": a low motor tone with a hard rattle riding on top,
+ * built to sound like a real phone buzzing against a hard table. Chosen over a
+ * cleaner alarm tone because the demo video shows a phone on a table — the
+ * sound and the picture should agree.
+ *
+ * The wobble is the important bit. Two oscillators a few Hz apart, plus a fast
+ * amplitude flutter, produce a sound the ear cannot settle into. That is what
+ * makes it nag instead of drone.
+ *
+ * comfort is the deliberate opposite: one warm sine, no rattle, no wobble.
+ * The contrast between the two is the product.
+ */
 const VOICES: Record<"pain" | "comfort" | "strike", { partials: Partial[]; wobbleHz: number }> = {
-  // low square + a detuned twin (3.5 Hz beating) + a thin high rasp that sits
-  // right in the range the ear is most sensitive to. Genuinely unpleasant.
   pain: {
     partials: [
-      { wave: "square",   hz: 68,   gain: 0.34 },
-      { wave: "square",   hz: 71.5, gain: 0.30 },
-      { wave: "sawtooth", hz: 1_180, gain: 0.05 },
+      { wave: "sawtooth", hz: 58,  gain: 0.30 },   // the motor
+      { wave: "square",   hz: 174, gain: 0.20 },   // casing rattle
+      { wave: "triangle", hz: 232, gain: 0.12 },   // the buzz against the table
     ],
-    wobbleHz: 11,
+    wobbleHz: 27,
   },
-  // her turn. Rude, buzzy, and higher so it cuts through.
+  // her turn — same instrument, wound tighter and higher
   strike: {
     partials: [
-      { wave: "sawtooth", hz: 92,   gain: 0.36 },
-      { wave: "sawtooth", hz: 97,   gain: 0.32 },
-      { wave: "square",   hz: 1_480, gain: 0.06 },
+      { wave: "sawtooth", hz: 74,  gain: 0.34 },
+      { wave: "square",   hz: 210, gain: 0.22 },
+      { wave: "triangle", hz: 300, gain: 0.13 },
     ],
-    wobbleHz: 16,
+    wobbleHz: 33,
   },
-  // no beating, no rasp, no wobble. Just a warm low hum.
   comfort: {
     partials: [
       { wave: "sine", hz: 44, gain: 0.26 },
