@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light; }
+
+body {
+  background:
+    radial-gradient(rgba(229,50,110,.13) 1.4px, transparent 1.4px) 0 0 / 18px 18px,
+    linear-gradient(170deg, #FFEAF3 0%, #FFDCEC 100%);
+  background-attachment: scroll, fixed;
+  min-height: 100dvh;
+}
+
+/* chunky candy button */
+.btn {
+  @apply w-full rounded-full py-4 px-5 font-round font-black text-white text-base
+         transition active:translate-y-[2px] disabled:opacity-40;
+  background: #E5326E;
+  box-shadow: 0 4px 0 rgba(200,40,95,.45);
+}
+.btn-warm { background: #F98BA0; box-shadow: 0 4px 0 rgba(212,100,125,.45); }
+.btn-ghost {
+  background: #FFD9E9; color: #A76487; box-shadow: 0 4px 0 #FFC4DE;
+}
+.card {
+  @apply bg-surface border-2 border-line rounded-blob p-4;
+  box-shadow: 0 2px 0 rgba(229,50,110,.13), 0 16px 34px -18px rgba(90,36,64,.4);
+}
+@keyframes pop { from { transform: scale(0) rotate(-30deg); opacity: 0 }
+                 to   { transform: scale(1) rotate(0);      opacity: 1 } }
+.pop { animation: pop .55s cubic-bezier(.2,1.6,.4,1) both; }
+@keyframes shake {
+  0%,100% { transform: translate(0,0) } 25% { transform: translate(-3px,1px) }
+  50% { transform: translate(3px,-2px) } 75% { transform: translate(-2px,-1px) }
+}
+.shake { animation: shake .45s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .shake { animation: none; outline: 3px solid #E5326E } }

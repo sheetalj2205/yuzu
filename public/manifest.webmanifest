@@ -1,0 +1,17 @@
+{
+  "name": "Yuzu — pain travels one way",
+  "short_name": "Yuzu",
+  "description": "She sends her cramp to his phone. He has five tries to work out what she needs.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFEAF3",
+  "theme_color": "#E5326E",
+  "categories": ["health", "lifestyle", "social"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -1,0 +1,732 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Yuzu — prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+:root{
+  --paper:#FFEAF3; --paper2:#FFDCEC; --surface:#FFFAFC; --surface2:#FFD9E9;
+  --ink:#5A2440; --inkSoft:#A76487; --inkFaint:#D293B3; --line:#FFC4DE;
+  --pain:#E5326E; --painSoft:#FFD2E3; --comfort:#F98BA0; --comfortSoft:#FFE1E8;
+  --calm:#5FBFA0; --lav:#D06BC4; --lavSoft:#FBDAF5;
+  --shadow:0 2px 0 rgba(229,50,110,.13), 0 16px 34px -18px rgba(90,36,64,.4);
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{
+  margin:0; color:var(--ink); font-family:"Zen Kaku Gothic New",system-ui,sans-serif;
+  font-size:15px; line-height:1.55;
+  background:radial-gradient(rgba(229,50,110,.13) 1.4px,transparent 1.4px) 0 0/18px 18px,
+             linear-gradient(170deg,var(--paper),var(--paper2)) fixed;
+}
+.wrap{max-width:900px; margin:0 auto; padding:26px 18px 60px}
+h1{font-family:"Zen Maru Gothic",sans-serif; font-weight:900; font-size:clamp(30px,6vw,46px);
+   line-height:1.05; margin:0 0 8px; text-align:center}
+h1 .a{color:var(--pain)} h1 .b{color:var(--comfort)}
+.sub{text-align:center; color:var(--inkSoft); margin:0 0 26px; font-size:15px}
+
+.stage{display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start}
+@media(max-width:760px){.stage{grid-template-columns:1fr}}
+
+.phone{
+  background:var(--surface); border:3px solid var(--line); border-radius:34px;
+  padding:16px 14px 18px; box-shadow:var(--shadow); position:relative; overflow:hidden;
+}
+.phone::before{content:""; position:absolute; top:9px; left:50%; transform:translateX(-50%);
+  width:56px; height:5px; border-radius:99px; background:var(--line)}
+.phone.shake{animation:shake .45s linear infinite}
+@keyframes shake{0%,100%{transform:translate(0,0)}25%{transform:translate(-3px,1px)}
+  50%{transform:translate(3px,-2px)}75%{transform:translate(-2px,-1px)}}
+@media(prefers-reduced-motion:reduce){.phone.shake{animation:none;outline:3px solid var(--pain)}}
+.screen{padding-top:16px; display:flex; flex-direction:column; gap:12px; min-height:470px}
+.who{text-align:center; font-family:"Zen Maru Gothic",sans-serif; font-weight:700;
+  font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--inkFaint)}
+
+.scene{position:relative; border-radius:22px; overflow:hidden; border:2px solid var(--line)}
+.scene svg{display:block; width:100%; height:auto}
+.landed{position:absolute; font-size:24px; line-height:1; animation:pop .55s cubic-bezier(.2,1.6,.4,1) both;
+  filter:drop-shadow(0 2px 5px rgba(60,20,50,.55))}
+@keyframes pop{from{transform:scale(0) rotate(-30deg);opacity:0}to{transform:scale(1) rotate(0);opacity:1}}
+.more{position:absolute; right:8px; bottom:8px; font-family:"Zen Maru Gothic",sans-serif;
+  font-weight:900; font-size:12px; color:#FFF0F7; background:rgba(90,36,64,.72);
+  border-radius:99px; padding:3px 9px}
+.heart{position:absolute; font-size:18px; pointer-events:none; animation:rise 1.5s ease-out both}
+@keyframes rise{0%{transform:translateY(0) scale(.5);opacity:0}25%{opacity:1}
+  100%{transform:translateY(-70px) scale(.85);opacity:0}}
+.flyer{position:fixed; z-index:60; font-size:34px; pointer-events:none}
+
+textarea,input[type=text]{width:100%; font-family:inherit; font-size:14.5px; color:var(--ink);
+  background:var(--paper); border:2px solid var(--line); border-radius:20px; padding:12px 14px; resize:none}
+textarea::placeholder,input::placeholder{color:var(--inkFaint)}
+textarea:focus-visible,input:focus-visible,button:focus-visible{outline:3px solid var(--lav); outline-offset:2px}
+.slider{display:flex; align-items:center; gap:10px}
+input[type=range]{flex:1; -webkit-appearance:none; appearance:none; height:14px; border-radius:99px;
+  border:2px solid var(--line); background:linear-gradient(90deg,var(--calm),var(--comfort),var(--pain)); cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:26px; height:26px; border-radius:99px;
+  background:var(--surface); border:3px solid var(--pain); box-shadow:0 2px 6px rgba(200,40,95,.35)}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:99px;background:var(--surface);
+  border:3px solid var(--pain)}
+.lvl{font-family:"Zen Maru Gothic",sans-serif; font-weight:900; font-size:13px; color:var(--pain);
+  background:var(--painSoft); border-radius:99px; padding:5px 12px; min-width:118px; text-align:center}
+
+.btn{width:100%; font-family:"Zen Maru Gothic",sans-serif; font-weight:900; font-size:15px;
+  color:#fff; background:var(--pain); border:none; border-radius:99px; padding:14px; cursor:pointer;
+  box-shadow:0 4px 0 rgba(200,40,95,.45); transition:transform .12s,box-shadow .12s}
+.btn:hover:not(:disabled){transform:translateY(-2px); box-shadow:0 6px 0 rgba(200,40,95,.45)}
+.btn:active:not(:disabled){transform:translateY(2px); box-shadow:0 1px 0 rgba(200,40,95,.45)}
+.btn:disabled{opacity:.4; cursor:default; box-shadow:none}
+.btn-warm{background:var(--comfort); box-shadow:0 4px 0 rgba(212,100,125,.45)}
+.btn-ghost{background:var(--surface2); color:var(--inkSoft); box-shadow:0 4px 0 var(--line)}
+.row2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+
+.card{background:var(--surface); border:2px solid var(--line); border-radius:22px; padding:14px;
+  box-shadow:var(--shadow)}
+.center{text-align:center}
+.gift-emoji{font-size:58px; line-height:1; margin-bottom:6px}
+.gift-name{font-family:"Zen Maru Gothic",sans-serif; font-weight:900; font-size:19px; margin:0 0 2px}
+.muted{color:var(--inkSoft); font-size:13px; margin:0}
+
+.tries{text-align:center; font-family:"Zen Maru Gothic",sans-serif; font-weight:900;
+  font-size:16px; color:var(--pain); margin:0}
+.hint{background:var(--lavSoft); border:2px solid var(--lav); border-radius:22px; padding:14px}
+.hint-lab{font-family:"Zen Maru Gothic",sans-serif; font-weight:700; font-size:11px; color:var(--lav); margin:0 0 7px}
+.hint-txt{margin:0; font-style:italic; font-size:15px; line-height:1.45}
+.hint-cta{margin:9px 0 0; font-family:"Zen Maru Gothic",sans-serif; font-weight:700; font-size:12px; color:var(--lav)}
+.wrongs{text-align:center; font-family:"Zen Maru Gothic",sans-serif; font-weight:700; font-size:13px;
+  color:var(--pain); background:var(--painSoft); border-radius:99px; padding:8px; margin:0}
+.reveal{background:var(--painSoft); border:2px solid var(--pain); border-radius:22px; padding:14px;
+  animation:pop .5s cubic-bezier(.2,1.5,.4,1) both}
+.reveal p:first-child{font-family:"Zen Maru Gothic",sans-serif; font-weight:700; font-size:11px;
+  color:var(--pain); margin:0 0 7px}
+.reveal-msg{font-family:"Zen Maru Gothic",sans-serif; font-weight:900; font-size:17px; margin:0; line-height:1.4}
+
+.drawer{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+.item{display:flex; align-items:center; gap:8px; text-align:left; font-family:inherit;
+  background:var(--paper); border:2px solid var(--line); border-radius:18px; padding:10px;
+  cursor:pointer; color:var(--ink); transition:transform .15s,border-color .15s}
+.item:hover:not(:disabled){transform:translateY(-3px) rotate(-1.4deg); border-color:var(--comfort)}
+.item:disabled{opacity:.35; cursor:default}
+.item.bad{border-style:dashed}
+.item.custom{border-color:var(--lav); background:var(--lavSoft)}
+.item.adder{border-style:dashed; border-color:var(--lav); color:var(--lav); justify-content:center;
+  font-family:"Zen Maru Gothic",sans-serif; font-weight:700; font-size:13px}
+.item-emoji{font-size:21px; line-height:1}
+.item-name{font-family:"Zen Maru Gothic",sans-serif; font-weight:700; font-size:12.5px; line-height:1.25}
+.addform{grid-column:1/-1; border:2px dashed var(--lav); background:var(--lavSoft);
+  border-radius:20px; padding:12px}
+.emoji-row{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px}
+.epick{font-size:19px; background:var(--surface); border:2px solid var(--line); border-radius:14px;
+  padding:5px 7px; cursor:pointer}
+.epick[aria-pressed=true]{border-color:var(--lav); transform:scale(1.1)}
+
+.code{font-family:"Zen Maru Gothic",sans-serif; font-weight:900; font-size:38px;
+  letter-spacing:.2em; color:var(--pain); text-align:center; margin:0}
+.codebox{background:var(--surface); border:2px solid var(--line); border-radius:22px; padding:16px}
+#codein{text-align:center; font-family:"Zen Maru Gothic",sans-serif; font-weight:900;
+  font-size:30px; letter-spacing:.2em; text-transform:uppercase; border-radius:22px; padding:14px}
+
+.revenge-lab{font-family:"Zen Maru Gothic",sans-serif; font-weight:900; font-size:14px;
+  color:var(--pain); margin:14px 0 9px}
+.revenge{display:grid; grid-template-columns:repeat(4,1fr); gap:8px}
+.hit{font-size:26px; background:var(--painSoft); border:2px solid var(--pain);
+  border-radius:18px; padding:9px 0; cursor:pointer; transition:transform .1s}
+.hit:hover{transform:translateY(-3px) rotate(-6deg)}
+.hit:active{transform:scale(.88)}
+.hits{margin:11px 0 0; font-family:"Zen Maru Gothic",sans-serif; font-weight:900;
+  font-size:13px; color:var(--pain)}
+.pow{
+  position:absolute; left:50%; top:44%; z-index:40; transform:translate(-50%,-50%);
+  font-family:"Zen Maru Gothic",sans-serif; font-weight:900; font-style:italic;
+  font-size:40px; color:#FFF3C4; pointer-events:none;
+  -webkit-text-stroke:3px #B0234A; paint-order:stroke fill;
+  text-shadow:0 5px 0 rgba(176,35,74,.45);
+  animation:pow .62s cubic-bezier(.2,1.7,.4,1) both;
+}
+@keyframes pow{
+  0%{transform:translate(-50%,-50%) scale(.2) rotate(-24deg); opacity:0}
+  45%{transform:translate(-50%,-50%) scale(1.22) rotate(7deg); opacity:1}
+  70%{transform:translate(-50%,-50%) scale(1) rotate(-3deg); opacity:1}
+  100%{transform:translate(-50%,-56%) scale(1.05) rotate(0); opacity:0}
+}
+.burst{position:absolute; inset:0; z-index:39; pointer-events:none;
+  background:radial-gradient(circle at 50% 44%, rgba(255,214,120,.85) 0%,
+    rgba(255,150,180,.55) 26%, rgba(255,150,180,0) 58%);
+  animation:burst .55s ease-out both}
+@keyframes burst{0%{opacity:0;transform:scale(.4)}35%{opacity:1}100%{opacity:0;transform:scale(1.25)}}
+.note{max-width:66ch; margin:34px auto 0; color:var(--inkSoft); font-size:13.5px; text-align:center}
+.note b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1><span class="a">Pain travels one way.</span><br><span class="b">Comfort travels back ✿</span></h1>
+  <p class="sub">Two phones. She writes. He guesses. Only she can make it stop.</p>
+
+  <div class="stage">
+    <!-- ================= HER PHONE ================= -->
+    <div class="phone" id="her-phone">
+      <div class="screen">
+        <p class="who">🌸 Meera&rsquo;s phone</p>
+
+        <!-- pairing -->
+        <div id="her-pair">
+          <p class="muted center" style="margin-bottom:10px">♡ Your Cuddle Code</p>
+          <div class="codebox"><p class="code" id="code">PLUM42</p></div>
+          <p class="muted center" style="margin-top:12px">Send this to him.</p>
+        </div>
+
+        <!-- game -->
+        <div id="her-game" hidden style="display:flex;flex-direction:column;gap:12px">
+          <p class="muted center" id="her-joined"></p>
+          <div class="scene" id="scene"></div>
+
+          <!-- compose (nothing else on screen) -->
+          <div id="her-compose" style="display:flex;flex-direction:column;gap:11px">
+            <textarea id="feel" rows="3" placeholder="how does it feel right now?"></textarea>
+            <div class="slider">
+              <input type="range" id="lvl" min="1" max="10" value="8" aria-label="How bad is it">
+              <span class="lvl" id="lvlv">8 · rough</span>
+            </div>
+            <button class="btn" id="send" disabled>Send it to him →</button>
+          </div>
+
+          <p class="muted center" id="her-wait" hidden></p>
+
+          <!-- she sees what he sent, then judges -->
+          <div class="card center" id="her-gift" hidden>
+            <div class="gift-emoji" id="g-emoji"></div>
+            <p class="gift-name" id="g-name"></p>
+            <p class="muted" style="margin-bottom:14px">from Kabir</p>
+            <div class="row2">
+              <button class="btn btn-warm" id="yes">That helped ♡</button>
+              <button class="btn btn-ghost" id="no">Not really</button>
+            </div>
+          </div>
+
+          <div class="card center" id="her-failed" hidden>
+            <p class="gift-name" style="color:var(--pain)">He ran out of tries.</p>
+            <p class="muted">Kabir tried 5 times and nothing landed. He was guessing.</p>
+            <p class="revenge-lab">Your turn ෆ</p>
+            <div class="revenge" id="revenge"></div>
+            <p class="hits" id="hits" hidden></p>
+            <button class="btn btn-ghost" id="again2" style="margin-top:12px">Alright, he&rsquo;s forgiven</button>
+          </div>
+
+          <div class="card center" id="her-done" hidden>
+            <p class="gift-name" style="color:var(--calm)">Score 0 ✿</p>
+            <p class="muted" id="done-sub"></p>
+            <button class="btn btn-ghost" id="again" style="margin-top:12px">New cycle</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= HIS PHONE ================= -->
+    <div class="phone" id="his-phone">
+      <div class="screen">
+        <p class="who">🧢 Kabir&rsquo;s phone</p>
+
+        <div id="his-pair">
+          <p class="muted center" style="margin-bottom:10px">♡ Her Cuddle Code</p>
+          <input type="text" id="codein" maxlength="6" placeholder="PLUM42">
+          <button class="btn" id="join" style="margin-top:12px">Join her room</button>
+        </div>
+
+        <div id="his-game" hidden style="display:flex;flex-direction:column;gap:12px">
+          <p class="muted center" id="his-joined"></p>
+          <p class="tries" id="tries" hidden></p>
+          <div class="hint" id="hint" hidden>
+            <p class="hint-lab">✦ all Yuzu will tell you</p>
+            <p class="hint-txt" id="hint-txt"></p>
+            <p class="hint-cta">→ pick something and send it</p>
+          </div>
+          <p class="wrongs" id="wrongs" hidden></p>
+          <div class="reveal" id="reveal" hidden>
+            <p>🔓 What she actually wrote:</p>
+            <p class="reveal-msg" id="reveal-msg"></p>
+            <p class="muted" style="margin-top:8px">She&rsquo;d told you already.</p>
+          </div>
+          <div class="drawer" id="drawer" hidden></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="note"><b>Open this on an Android phone and it really vibrates.</b>
+  Her cramp arrives as short hard jabs; his hot water bottle as a slow warm breath.
+  Here both phones share one screen so you can watch both sides at once.</p>
+</div>
+
+<script>
+(function(){
+"use strict";
+var $=function(id){return document.getElementById(id)};
+var MAX_TRIES=5;
+
+/* ---------------- drawer ---------------- */
+var ITEMS=[
+ {id:"hug",emoji:"🫂",name:"A long hug",tag:"company"},
+ {id:"kiss",emoji:"😘",name:"Kiss goodnight",tag:"company"},
+ {id:"heat",emoji:"♨️",name:"Hot water bottle",tag:"heat"},
+ {id:"tea",emoji:"🍵",name:"Make her tea",tag:"heat"},
+ {id:"blanket",emoji:"🧣",name:"Send a blanket",tag:"warmth"},
+ {id:"meds",emoji:"💊",name:"Painkiller run",tag:"meds",once:true},
+ {id:"music",emoji:"🎧",name:"Her playlist",tag:"company"},
+ {id:"cat",emoji:"🐈",name:"Call in the cat",tag:"company"},
+ {id:"cancel",emoji:"📵",name:"Cancel her 9am",tag:"rest",once:true},
+ {id:"yoga",emoji:"🧘",name:"“Tried yoga?”",tag:"bad",bad:true}
+];
+var FAVE=["🍫","🧸","🍜","🌹","🍦","📖","🎬","🧁","🍿","🌻","💐","🛁"];
+/* 18 hand-checked slots around her. Rows are 12% apart (an emoji is ~11% tall)
+   and neighbours in a row are >=8% apart (an emoji is ~6% wide), so nothing can
+   collide. Her body occupies x 44-70 / y 46-80, so those are left empty. */
+var GIFT_SLOTS=[
+  [22,62],[84,62],[22,50],[84,50],[22,74],[84,74],
+  [10,62],[92,62],[10,50],[92,50],[10,74],[92,74],
+  [26,86],[40,86],[68,86],[26,26],[54,26],[82,26]
+];
+var LEVELS=["","a niggle","noticeable","annoying","bad","properly bad",
+            "hard to sit","curled up","rough","crying","can't move"];
+
+var S={angry:false,hits:0,needs:null,message:"",pattern:null,intensity:8,tries:0,revealed:false,
+       gifts:[],pending:null,sent:{},timer:null,adding:false,pick:FAVE[0],landed:0,cycles:0};
+
+/* ---------------- AI stand-in (same rules the server falls back to) ---------------- */
+var HINT_BANK={
+  heat:["Something is cold.","She wants heat, not a drink.","Heat held against her, low down."],
+  meds:["Warmth won't reach this one.","Something has to actually dull it.","She needs the pain blocked, not soothed."],
+  rest:["She's running on empty.","Something on her list has to go.","Take tomorrow off her hands."],
+  company:["She's on her own.","Being alone is part of it.","She wants your voice, not a parcel."],
+  warmth:["She wants weight on her.","Something to curl up under.","Cover her — not a hot drink."]
+};
+function need(tag,label){return {tag:tag,label:label,hints:HINT_BANK[tag],done:false}}
+
+function sniffNeeds(t){
+  var f=[];
+  if(/cold|freez|chill|cramp|clench/.test(t)) f.push(need("heat","something warm"));
+  if(/sharp|stab|knife|killing|agony|electric/.test(t)) f.push(need("meds","the sharp pain"));
+  if(/tired|exhaust|sleep|can'?t think|fog|drain/.test(t)) f.push(need("rest","actual rest"));
+  if(/alone|lonely|miss|sad|cry|low/.test(t)) f.push(need("company","him, nearby"));
+  if(/heavy|ache|back|hold|hug|curl/.test(t)) f.push(need("warmth","weight on her"));
+  if(!f.length) f.push(need("heat","something warm"));
+  return f.slice(0,3);
+}
+
+/* rules — the safety net, and what runs with no AI available */
+function localTranslate(msg,level){
+  var t=msg.toLowerCase(),b;
+  if(/stab|sharp|knife|electric|shoot|spike/.test(t))
+    b={envelope:"stab",pulse_ms:420,duration_s:35,label:"Hot wire, short bursts"};
+  else if(/cold|freez|heavy|exhaust|tired|think|fog/.test(t))
+    b={envelope:"grind",pulse_ms:2200,duration_s:110,label:"Leaden cold ache"};
+  else
+    b={envelope:"swell",pulse_ms:1600,duration_s:90,label:"Slow clenching swell"};
+  b.peak=Math.max(.2,level/10); b.needs=sniffNeeds(t); b.offline=true;
+  return b;
+}
+
+var TAGS=["heat","meds","rest","company","warmth"];
+function normaliseNeeds(raw){
+  var out=[];
+  if(Array.isArray(raw)) raw.slice(0,3).forEach(function(n){
+    if(!n||typeof n!=="object") return;
+    var tag=String(n.tag||"").toLowerCase();
+    if(TAGS.indexOf(tag)<0) tag="heat";
+    var hints=(Array.isArray(n.hints)&&n.hints.length)?n.hints.slice(0,3).map(String):HINT_BANK[tag];
+    out.push({tag:tag,label:String(n.label||tag),hints:hints,done:false});
+  });
+  if(!out.length) out.push(need("heat","something warm"));
+  return out;
+}
+
+function buildPrompt(msg,level){
+  return 'Convert a description of menstrual pain into a phone vibration pattern, and work out everything she needs.\n\n'+
+  'Her words: "'+msg+'"\nHer own intensity rating: '+level+' out of 10.\n\n'+
+  'Her partner will NOT be shown her words. You are the app speaking TO HIM.\n\n'+
+  'IMPORTANT: her message may contain SEVERAL separate needs. Pull out every distinct one (1 to 3). '+
+  'She is not settled until every one of them is met.\n\n'+
+  'For EACH need, write three short hints addressed to him ("she", "her"), getting gradually clearer '+
+  '— never quoting or closely paraphrasing her sentence, and never naming a specific object. '+
+  'The hints for a need must be about THAT need only.\n\n'+
+  'Reply with ONLY this JSON, no other text:\n'+
+  '{"envelope":"swell"|"stab"|"grind"|"throb","peak":0-1,"pulse_ms":200-4000,"duration_s":10-180,'+
+  '"label":"3-5 word name for this sensation","needs":[{"tag":"heat"|"meds"|"rest"|"company"|"warmth",'+
+  '"label":"2-4 words, her side","hints":["vague, max 8 words","warmer, max 10 words","almost tells him, max 10 words"]}]}\n\n'+
+  'Sharp or stabbing -> stab with short pulse_ms. Building or rolling -> swell. '+
+  'Constant heavy ache -> grind. Pulsing -> throb.\n'+
+  'Tags: cold or cramping -> heat. Very sharp pain -> meds. Exhausted or overwhelmed -> rest. '+
+  'Lonely, low, missing him -> company. Wants to be held or covered -> warmth.\n'+
+  'Example — "I am freezing, my back is killing me and I miss you" has THREE needs: heat, meds, company.';
+}
+
+/* real AI: Claude when this runs as an artifact, our Gemini route when served by Next */
+var sampleFn=null;
+async function translate(msg,level){
+  if(sampleFn){
+    try{
+      var r=await sampleFn.json(buildPrompt(msg,level),{modelTier:"quick",cache:false});
+      if(r&&r.envelope){
+        return {envelope:String(r.envelope),peak:Math.max(.2,Math.min(1,Number(r.peak)||level/10)),
+          pulse_ms:Math.max(200,Math.min(4000,Math.round(Number(r.pulse_ms)||1400))),
+          duration_s:Math.max(10,Math.min(180,Math.round(Number(r.duration_s)||70))),
+          label:String(r.label||"Unnamed sensation"),needs:normaliseNeeds(r.needs)};
+      }
+    }catch(e){ if(e&&e.code==="not_granted") sampleFn=null; }
+  }
+  try{
+    var res=await fetch("/api/translate",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({message:msg,intensity:level})});
+    if(res.ok){var d=await res.json(); if(d&&d.envelope){d.needs=normaliseNeeds(d.needs); return d}}
+  }catch(e){}
+  return localTranslate(msg,level);
+}
+
+var unmet=function(){return S.needs?S.needs.filter(function(n){return !n.done}):[]};
+var scoreNow=function(){
+  if(!S.needs) return 0;
+  var u=unmet().length;
+  return u===0?0:Math.round(S.intensity*10*u/S.needs.length);
+};
+
+/* ---------------- haptics ---------------- */
+function buzzPain(p){
+  if(!navigator.vibrate) return;
+  var on=Math.round(p.pulse_ms*(p.envelope==="stab"?.16:.5)*p.peak),
+      off=Math.max(70,p.pulse_ms-on),pat=[];
+  for(var i=0;i<5;i++) pat.push(Math.max(45,on),off);
+  try{navigator.vibrate(pat)}catch(e){}
+}
+function buzzComfort(){try{navigator.vibrate([180,520,220,520,260])}catch(e){}}
+function shakeHim(ms){
+  $("his-phone").classList.add("shake");
+  setTimeout(function(){$("his-phone").classList.remove("shake")},ms||800);
+}
+function startLoop(){
+  stopLoop();
+  S.timer=setInterval(function(){
+    if(!unmet().length){stopLoop();return}
+    buzzPain(S.pattern); shakeHim(700);
+  },5000);
+}
+function stopLoop(){
+  if(S.timer){clearInterval(S.timer);S.timer=null}
+  try{navigator.vibrate(0)}catch(e){}
+}
+
+/* ---------------- her room ---------------- */
+function scene(){
+  var s=scoreNow(), band=s>65?0:s>40?1:s>20?2:3, t=1-s/100;
+  var SKY=[["#5E4E80","#8C6E9B"],["#7C5F92","#C084A4"],["#E08CA8","#FFC38E"],["#FFC7DC","#FFEFC2"]][band];
+  var WALL=[["#6B5573","#513F5C"],["#856089","#66496F"],["#B27FA0","#8A6180"],["#E4A9C4","#BC85A4"]][band];
+  var FLOOR=["#42304C","#543A57","#70506A","#966E85"][band];
+  var hurt=s>35, rain="";
+  for(var i=0;i<22;i++){var x=44+(i*37)%158,y=40+(i*53)%112;
+    rain+='<line x1="'+x+'" y1="'+y+'" x2="'+(x-4)+'" y2="'+(y+13)+'"/>'}
+  var face=S.angry
+    ?'<g stroke="#4A2C40" stroke-width="3" fill="none" stroke-linecap="round">'+
+     '<path d="M282 157 l10 5"/><path d="M306 157 l-10 5"/>'+
+     '<path d="M283 166 l9 0"/><path d="M297 166 l9 0"/>'+
+     '<path d="M286 178 q8 -7 16 0 q-8 3 -16 0" fill="#B0234A" stroke="none"/></g>'+
+     '<g stroke="#E5326E" stroke-width="3" fill="none" stroke-linecap="round">'+
+     '<path d="M258 136 l7 -7 M265 136 l-7 -7 M262 128 l0 12 M256 134 l12 0"/></g>'
+    :hurt
+    ?'<g stroke="#4A2C40" stroke-width="2.6" fill="none" stroke-linecap="round">'+
+     '<path d="M284 162 q4 -4 8 0"/><path d="M298 162 q4 -4 8 0"/><path d="M288 176 q6 -5 12 0"/></g>'
+    :'<g stroke="#4A2C40" stroke-width="2.6" fill="none" stroke-linecap="round">'+
+     '<path d="M284 161 q4 4 8 0"/><path d="M298 161 q4 4 8 0"/><path d="M288 174 q6 6 12 0"/></g>'+
+     '<circle cx="276" cy="171" r="5.5" fill="#FF9EC4" opacity=".6"/>'+
+     '<circle cx="312" cy="171" r="5.5" fill="#FF9EC4" opacity=".6"/>';
+
+  $("scene").innerHTML=
+  '<svg viewBox="0 0 520 300" role="img" aria-label="Her room, warming as her pain drops"><defs>'+
+  '<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="'+SKY[0]+'"/>'+
+  '<stop offset="100%" stop-color="'+SKY[1]+'"/></linearGradient>'+
+  '<linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="'+WALL[0]+'"/>'+
+  '<stop offset="100%" stop-color="'+WALL[1]+'"/></linearGradient>'+
+  '<radialGradient id="lamp"><stop offset="0%" stop-color="#FFD59B" stop-opacity="'+(.22+t*.55)+'"/>'+
+  '<stop offset="100%" stop-color="#FFD59B" stop-opacity="0"/></radialGradient>'+
+  '<radialGradient id="ache"><stop offset="0%" stop-color="#FF5C8A" stop-opacity=".95"/>'+
+  '<stop offset="100%" stop-color="#FF5C8A" stop-opacity="0"/></radialGradient></defs>'+
+  '<rect width="520" height="300" fill="url(#wall)"/><rect y="234" width="520" height="66" fill="'+FLOOR+'"/>'+
+  '<rect x="36" y="34" width="176" height="132" rx="14" fill="url(#sky)"/>'+
+  '<g opacity="'+Math.max(0,(s-25)/75)+'" stroke="#CFE2F5" stroke-width="1.7" stroke-linecap="round">'+rain+'</g>'+
+  '<circle cx="176" cy="66" r="15" fill="'+(band>=2?"#FFF6C9":"#FFF2D6")+'" opacity="'+(.3+t*.7)+'"/>'+
+  '<rect x="36" y="34" width="176" height="132" rx="14" fill="none" stroke="#E7BBD3" stroke-width="6"/>'+
+  '<line x1="124" y1="34" x2="124" y2="166" stroke="#E7BBD3" stroke-width="4.5"/>'+
+  '<line x1="36" y1="100" x2="212" y2="100" stroke="#E7BBD3" stroke-width="4.5"/>'+
+  '<path d="M28 26 Q130 62 232 26" fill="none" stroke="#F6C9DE" stroke-width="2" opacity=".75"/>'+
+  '<circle cx="70" cy="42" r="4" fill="#FFE08A"/><circle cx="110" cy="52" r="4" fill="#FFB3D0"/>'+
+  '<circle cx="150" cy="52" r="4" fill="#B9E8D5"/><circle cx="190" cy="42" r="4" fill="#D9B8F5"/>'+
+  '<circle cx="438" cy="118" r="86" fill="url(#lamp)"/>'+
+  '<rect x="434" y="128" width="8" height="88" rx="4" fill="#E7BBD3"/>'+
+  '<path d="M408 128 L468 128 L455 98 L421 98 Z" fill="#FFD08A"/>'+
+  '<rect x="50" y="200" width="32" height="34" rx="9" fill="#F2A98C"/>'+
+  '<path d="M66 200 C56 180 42 176 42 176 C58 174 66 185 66 196 C70 179 86 170 86 170 C84 187 74 198 66 200Z" fill="#8ED3AE"/>'+
+  '<rect x="194" y="176" width="204" height="62" rx="22" fill="#8E6B97"/>'+
+  '<rect x="194" y="154" width="204" height="36" rx="18" fill="#A27FAB"/>'+
+  '<path d="M246 234 Q252 186 294 186 Q338 188 342 234 Z" fill="#F7A8C6"/>'+
+  '<ellipse cx="294" cy="212" rx="'+(26+s*.26)+'" ry="30" fill="url(#ache)" opacity="'+Math.max(0,s/100*.9)+'"/>'+
+  '<circle cx="294" cy="163" r="25" fill="#FFDCC2"/>'+
+  '<path d="M269 160 Q270 133 294 133 Q318 133 319 160 Q312 145 294 145 Q276 145 269 160Z" fill="#4A2C40"/>'+
+  '<path d="M268 158 Q261 184 268 198 Q272 179 272 162Z" fill="#4A2C40"/>'+
+  '<path d="M320 158 Q327 184 320 198 Q316 179 316 162Z" fill="#4A2C40"/>'+
+  '<path d="M310 138 q9 -6 13 3 q-8 -1 -13 -3Z" fill="#FF9EC4"/>'+face+'</svg>';
+
+  /* hand-placed slots: two columns flanking her, then a row above her head.
+     nothing lands on her, and nothing lands on anything else. */
+  S.gifts.slice(0,GIFT_SLOTS.length).forEach(function(g,n){
+    var slot=GIFT_SLOTS[n];
+    var d=document.createElement("div"); d.className="landed"; d.textContent=g.emoji; d.title=g.name;
+    d.style.left=slot[0]+"%"; d.style.top=slot[1]+"%";
+    $("scene").appendChild(d);
+  });
+  /* past 18 the room is full — count the rest instead of stacking them */
+  var extra=S.gifts.length-GIFT_SLOTS.length;
+  if(extra>0){
+    var c=document.createElement("div"); c.className="more"; c.textContent="+"+extra;
+    c.title=extra+" more things he sent";
+    $("scene").appendChild(c);
+  }
+}
+function hearts(){
+  for(var i=0;i<6;i++)(function(i){setTimeout(function(){
+    var h=document.createElement("div"); h.className="heart";
+    h.textContent=["♡","✿","♡","✧","♡","ෆ"][i];
+    h.style.left=(38+Math.random()*34)+"%"; h.style.top=(56+Math.random()*16)+"%";
+    $("scene").appendChild(h); setTimeout(function(){h.remove()},1600);
+  },i*110)})(i);
+}
+
+/* ---------------- his drawer ---------------- */
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+
+function drawer(){
+  var d=$("drawer"); d.innerHTML="";
+  ITEMS.forEach(function(it){
+    var b=document.createElement("button");
+    b.className="item"+(it.bad?" bad":"")+(it.custom?" custom":"");
+    b.disabled=!!(it.once&&S.sent[it.id])||!!S.pending||!S.needs||!unmet().length;
+    b.innerHTML='<span class="item-emoji">'+it.emoji+'</span>'+
+                '<span class="item-name">'+esc(it.name)+'</span>';
+    b.onclick=function(){give(it,b)};
+    d.appendChild(b);
+  });
+  var add=document.createElement("button");
+  add.className="item adder"; add.textContent="➕ Add her favourite";
+  add.disabled=!!S.pending;
+  add.onclick=function(){S.adding=true; drawer()};
+  d.appendChild(add);
+  if(S.adding) d.appendChild(addForm());
+  d.hidden=false;
+}
+function addForm(){
+  var box=document.createElement("div"); box.className="addform";
+  var row=document.createElement("div"); row.className="emoji-row";
+  FAVE.forEach(function(e){
+    var b=document.createElement("button"); b.className="epick"; b.textContent=e;
+    b.setAttribute("aria-pressed",String(e===S.pick));
+    b.onclick=function(){S.pick=e;
+      Array.prototype.forEach.call(row.children,function(c){
+        c.setAttribute("aria-pressed",String(c.textContent===e))})};
+    row.appendChild(b);
+  });
+  var inp=document.createElement("input"); inp.type="text"; inp.id="fave";
+  inp.placeholder="her favourite chocolate…"; inp.maxLength=34;
+  var btns=document.createElement("div"); btns.className="row2"; btns.style.marginTop="10px";
+  var ok=document.createElement("button"); ok.className="btn btn-warm"; ok.textContent="Add ♡";
+  ok.style.padding="10px"; ok.style.fontSize="13px";
+  ok.onclick=function(){
+    var n=inp.value.trim(); if(!n){inp.focus();return}
+    ITEMS.push({id:"f"+Date.now(),emoji:S.pick,name:n,tag:"favourite",custom:true});
+    S.adding=false; drawer();
+  };
+  var no=document.createElement("button"); no.className="btn btn-ghost"; no.textContent="Cancel";
+  no.style.padding="10px"; no.style.fontSize="13px";
+  no.onclick=function(){S.adding=false; drawer()};
+  btns.appendChild(ok); btns.appendChild(no);
+  box.appendChild(row); box.appendChild(inp); box.appendChild(btns);
+  setTimeout(function(){inp.focus()},30);
+  return box;
+}
+
+function fly(emoji,from){
+  var a=from.getBoundingClientRect(), b=$("scene").getBoundingClientRect();
+  var f=document.createElement("div"); f.className="flyer"; f.textContent=emoji;
+  f.style.left=(a.left+a.width/2-17)+"px"; f.style.top=(a.top+a.height/2-17)+"px";
+  document.body.appendChild(f);
+  var dx=(b.left+b.width*.55)-(a.left+a.width/2), dy=(b.top+b.height*.62)-(a.top+a.height/2);
+  f.animate([{transform:"translate(0,0) scale(1)",opacity:1},
+    {transform:"translate("+dx*.5+"px,"+(dy*.5-70)+"px) scale(1.5) rotate(-18deg)",opacity:1,offset:.55},
+    {transform:"translate("+dx+"px,"+dy+"px) scale(.85)",opacity:0}],
+    {duration:900,easing:"cubic-bezier(.3,.7,.4,1)"}).onfinish=function(){f.remove()};
+}
+
+/* ---------------- the loop ---------------- */
+function hisView(){
+  if(!S.needs){$("tries").hidden=$("hint").hidden=$("wrongs").hidden=$("drawer").hidden=true;return}
+  if(S.revealed){
+    $("hint").hidden=true; $("tries").hidden=true;
+    $("reveal").hidden=false; $("reveal-msg").textContent="“"+S.message+"”";
+  }else{
+    var left=MAX_TRIES-S.tries;
+    $("tries").textContent=left>0
+      ? left+" "+(left===1?"try":"tries")+" left to make her better ♡" : "Out of tries 🥺";
+    $("tries").hidden=false;
+    var open=unmet();
+    if(open.length){
+      var hs=(open[0].hints&&open[0].hints.length)?open[0].hints:HINT_BANK[open[0].tag];
+      if(!hs||!hs.length) hs=HINT_BANK.heat;
+      var i=S.tries>=4?2:S.tries>=2?1:0;
+      $("hint-txt").textContent="“"+hs[Math.min(i,hs.length-1)]+"”";
+      $("hint").hidden=false;
+    } else $("hint").hidden=true;
+  }
+  var u=unmet().length;
+  if(u>0){$("wrongs").textContent=u+" "+(u===1?"thing":"things")+" still wrong"; $("wrongs").hidden=false}
+  else $("wrongs").hidden=true;
+  drawer();
+}
+
+async function send(){
+  var msg=$("feel").value.trim(); if(!msg) return;
+  var lvl=Number($("lvl").value);
+  $("send").disabled=true; $("send").textContent="Reading her words…";
+  var t=await translate(msg,lvl);
+  $("send").textContent="Send it to him →";
+  S.message=msg; S.intensity=lvl; S.needs=t.needs; S.pattern=t;
+  S.tries=0; S.revealed=false; S.sent={};
+  $("her-compose").hidden=true;
+  $("her-wait").hidden=false; $("her-wait").textContent="Sent. His phone is buzzing.";
+  $("her-done").hidden=true; $("her-failed").hidden=true; $("reveal").hidden=true;
+  scene(); hisView();
+  buzzPain(t); shakeHim(1400); startLoop();
+}
+
+function give(it,btn){
+  if(S.pending) return;
+  S.pending=it; S.tries+=1; S.sent[it.id]=true;
+  fly(it.emoji,btn);
+  setTimeout(function(){
+    $("her-wait").hidden=true;
+    $("g-emoji").textContent=it.emoji; $("g-name").textContent=it.name;
+    $("her-gift").hidden=false;
+    buzzComfort();
+  },780);
+  hisView();
+}
+
+function verdict(helped){
+  var it=S.pending; if(!it) return;
+  S.pending=null; $("her-gift").hidden=true;
+
+  if(!helped){
+    // her "not really" fires his phone again, immediately
+    buzzPain(S.pattern); shakeHim(900);
+    $("her-wait").hidden=false; $("her-wait").textContent="You said no. His phone went off again.";
+    finishTurn(); return;
+  }
+
+  S.gifts.push(it); hearts();
+  var open=unmet(), hit=null;
+  for(var i=0;i<open.length;i++) if(open[i].tag===it.tag){hit=open[i];break}
+  if(!hit) hit=open[0];
+  if(hit) hit.done=true;
+  scene();
+
+  if(!unmet().length){
+    stopLoop(); S.cycles+=1;
+    $("her-done").hidden=false;
+    $("done-sub").textContent="All "+S.needs.length+(S.needs.length===1?" thing":" things")+
+      " she asked for, done in "+S.tries+(S.tries===1?" try.":" tries.");
+    $("her-wait").hidden=true;
+    buzzComfort();
+  }else{
+    $("her-wait").hidden=false;
+    $("her-wait").textContent="That helped. "+unmet().length+" still wrong.";
+  }
+  finishTurn();
+}
+
+function finishTurn(){
+  if(S.tries>=MAX_TRIES && unmet().length && !S.revealed){
+    S.revealed=true;                 // he sees her real words
+    S.angry=true;                    // and she has had enough
+    $("her-failed").hidden=false;    // she is told he failed
+    $("her-wait").hidden=true;
+    revengeUI(); scene();
+    stopLoop();                      // the cramp buzz stops; SHE takes over the buzzing
+  }
+  hisView();
+}
+
+/* ---------------- her turn: he failed, now he finds out ---------------- */
+var HITS=[
+  {emoji:"\ud83d\udc4a", word:"POW!",    pattern:[320,70,320]},
+  {emoji:"\ud83d\udd28", word:"BONK!",   pattern:[500,60,220]},
+  {emoji:"\ud83e\udd4a", word:"SMACK!",  pattern:[180,50,180,50,180]},
+  {emoji:"\u26a1",        word:"ZAP!",    pattern:[90,40,90,40,90,40,420]}
+];
+
+function pow(hit){
+  var phone=$("his-phone");
+  var b=document.createElement("div"); b.className="burst"; phone.appendChild(b);
+  var p=document.createElement("div"); p.className="pow"; p.textContent=hit.word; phone.appendChild(p);
+  setTimeout(function(){b.remove(); p.remove()},700);
+}
+
+function strike(hit){
+  S.hits+=1;
+  try{navigator.vibrate(hit.pattern)}catch(e){}
+  pow(hit); shakeHim(760);
+  $("hits").hidden=false;
+  $("hits").textContent=S.hits<5
+    ? S.hits+(S.hits===1?" hit. He felt that.":" hits. He definitely felt that.")
+    : S.hits+" hits. Okay — he has learnt his lesson \u2661";
+}
+
+function revengeUI(){
+  var box=$("revenge"); if(box.childElementCount) return;
+  HITS.forEach(function(h){
+    var b=document.createElement("button"); b.className="hit"; b.type="button";
+    b.textContent=h.emoji; b.title=h.word;
+    b.onclick=function(){strike(h)};
+    box.appendChild(b);
+  });
+}
+
+/* ---------------- wiring ---------------- */
+$("lvl").oninput=function(){$("lvlv").textContent=this.value+" · "+LEVELS[Number(this.value)]};
+$("feel").oninput=function(){$("send").disabled=!this.value.trim()};
+$("send").onclick=send;
+$("yes").onclick=function(){verdict(true)};
+$("no").onclick=function(){verdict(false)};
+function reset(){
+  S.needs=null;S.message="";S.tries=0;S.revealed=false;S.pending=null;S.sent={};
+  S.angry=false;S.hits=0;$("hits").hidden=true;$("revenge").innerHTML="";
+  $("her-done").hidden=true;$("her-failed").hidden=true;$("her-wait").hidden=true;
+  $("reveal").hidden=true;$("feel").value="";$("send").disabled=true;
+  $("her-compose").hidden=false; S.pattern=null; stopLoop(); scene(); hisView();
+}
+$("again").onclick=reset;
+$("again2").onclick=reset;
+$("codein").oninput=function(){this.value=this.value.toUpperCase()};
+$("join").onclick=function(){
+  $("her-pair").hidden=true; $("his-pair").hidden=true;
+  $("her-game").hidden=false; $("his-game").hidden=false;
+  $("her-joined").innerHTML="<b>Kabir</b> joined to feel your pain and make it better ♡";
+  $("his-joined").innerHTML="You&rsquo;re in <b>Meera</b>&rsquo;s room. Now feel her pain and calm her down ♡";
+  scene(); hisView();
+};
+$("codein").value="PLUM42";
+if(window.claude&&typeof window.claude.use==="function"){
+  window.claude.use("sample").then(function(fn){ if(fn) sampleFn=fn; }).catch(function(){});
+}
+})();
+</script>
+</body>
+</html>
