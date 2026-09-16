@@ -10,7 +10,13 @@ function Login() {
   const signIn = async () => {
     await supabase().auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${location.origin}/auth/callback?next=/onboarding` },
+      options: {
+        redirectTo: `${location.origin}/auth/callback?next=/onboarding`,
+        // always show the account chooser. Without this Google silently reuses
+        // whoever signed in last, which makes testing two people on one laptop
+        // — and demoing on stage — needlessly painful.
+        queryParams: { prompt: "select_account" },
+      },
     });
   };
 
