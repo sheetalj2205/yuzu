@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase-client";
+import { supabase, signOut } from "@/lib/supabase-client";
 import { makeCuddleCode } from "@/lib/items";
 
 export default function RoomGate() {
@@ -79,6 +79,14 @@ export default function RoomGate() {
             <button className="btn" onClick={join} disabled={typed.length < 6}>Join her room</button>
           </>
         )}
+
+        {/* the only sign-out in the app, deliberately out of the way */}
+        <button
+          onClick={signOut}
+          className="mt-10 text-inkFaint text-xs underline underline-offset-4"
+        >
+          Sign out
+        </button>
       </div>
     </main>
   );
