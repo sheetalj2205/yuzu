@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase-client";
 import { buzzComfort, buzzPain, buzzStrike, startBuzzLoop, stopBuzz } from "@/lib/haptics";
 import { hintFor, score as scoreOf, tickOff, unmet } from "@/lib/translate";
 import { cue } from "@/lib/sound";
+import { readPartner, trackVisibility, type Presence } from "@/lib/presence";
 import { MAX_TRIES, type Item, type Need, type Pattern } from "@/lib/types";
 import HerScreen, { HITS, type Gift } from "@/components/HerScreen";
 import HisScreen from "@/components/HisScreen";
@@ -29,6 +30,10 @@ export default function Room() {
   const [custom, setCustom]     = useState<Item[]>([]);
   const [buzzing, setBuzzing]   = useState(false);
   const [hits, setHits]         = useState(0);
+  const [meId, setMeId]         = useState<string | null>(null);
+  const [myName, setMyName]     = useState<string>("");
+  const [partnerAt, setPartnerAt] = useState<Presence>("gone");
+  const [leftCount, setLeftCount] = useState(0);
   const stopLoop = useRef<null | (() => void)>(null);
   const cycleRef = useRef<Cycle | null>(null);
 
@@ -38,9 +43,11 @@ export default function Room() {
     (async () => {
       const { data: { user } } = await sb.auth.getUser();
       if (!user) return router.push("/");
-      const { data: p } = await sb.from("profiles").select("gender").eq("id", user.id).single();
+      const { data: p } = await sb.from("profiles").select("gender, name").eq("id", user.id).single();
       if (!p?.gender) return router.push("/onboarding");
       setMe(p.gender);
+      setMeId(user.id);
+      setMyName(p.name ?? "Someone");
 
       const { data: room } = await sb.from("rooms").select("id, her_id, him_id").eq("code", code).single();
       if (!room) return router.push("/room");
@@ -65,8 +72,8 @@ export default function Room() {
 
   /* ---------------- live sync between the two phones ---------------- */
   useEffect(() => {
-    if (!roomId) return;
-    const ch = sb.channel(`room:${roomId}`)
+    if (!roomId || !me || !meId) return;
+    const ch = sb.channel(`room:${roomId}`, { config: { presence: { key: meId } } })
       .on("postgres_changes", { event: "*", schema: "public", table: "cycles", filter: `room_id=eq.${roomId}` },
         ({ new: row }) => setCycle(row as Cycle))
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "gifts" },
@@ -83,9 +90,22 @@ export default function Room() {
           }
           if (me === "her") { setIncoming(g); cue("arrive"); buzzComfort(); }  // HER phone: soft, warm
         })
-      .subscribe();
-    return () => { sb.removeChannel(ch); };
-  }, [sb, roomId, me]);
+      .on("presence", { event: "sync" }, () => {
+        const { presence, name } = readPartner(ch.presenceState(), me);
+        setPartnerAt(prev => {
+          // he was watching, now he is not — she should know
+          if (prev === "here" && presence !== "here") setLeftCount(c => c + 1);
+          return presence;
+        });
+        if (name) setPartner(name);
+      })
+      .subscribe(status => {
+        if (status === "SUBSCRIBED") void ch.track({ role: me, name: myName, state: "here" });
+      });
+
+    const untrack = trackVisibility(ch, { role: me, name: myName });
+    return () => { untrack(); sb.removeChannel(ch); };
+  }, [sb, roomId, me, meId, myName]);
 
   /* ---------------- HIS phone buzzes on a loop until she says stop ---------------- */
   useEffect(() => {
@@ -99,6 +119,32 @@ export default function Room() {
   }, [me, cycle]);
 
   useEffect(() => { cycleRef.current = cycle; }, [cycle]);
+
+  /**
+   * Keep HIS screen awake while a cycle is open. A sleeping screen is a hidden
+   * page, and a hidden page cannot vibrate — so without this the buzz dies the
+   * moment his phone dims, while he is still holding it. Re-acquired after each
+   * visibility change, because the OS drops the lock when you switch away.
+   */
+  useEffect(() => {
+    if (me !== "him" || !cycle || cycle.closed_at) return;
+    let lock: WakeLockSentinel | null = null;
+    let dropped = false;
+
+    const acquire = async () => {
+      try { lock = await navigator.wakeLock?.request("screen") ?? null; }
+      catch { /* unsupported or denied — nothing to do */ }
+    };
+    const onVisible = () => { if (!document.hidden && !dropped) void acquire(); };
+
+    void acquire();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      dropped = true;
+      document.removeEventListener("visibilitychange", onVisible);
+      void lock?.release().catch(() => {});
+    };
+  }, [me, cycle]);
   useEffect(() => () => stopBuzz(), []);
 
   /* ---------------- she sends ---------------- */
@@ -192,6 +238,8 @@ export default function Room() {
       waiting={!!cycle && !incoming}
       failed={!!cycle?.revealed && unmet(needs).length > 0}
       hits={hits}
+      partnerAt={partnerAt}
+      leftCount={leftCount}
       onSend={send}
       onVerdict={verdict}
       onStrike={strike}

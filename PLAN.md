@@ -178,3 +178,8 @@ gifts      id · cycle_id · emoji · name · tag · verdict('pending'|'helped'|
 - **He never sees her words** until he has failed 5 times.
 - **Cap the buzz loop** at ~10 minutes with a pause on her side. Uncapped is a rage-quit.
   Say this on stage as a design decision, not an oversight.
+- **He can leave. He just can't do it quietly.** Browsers refuse to vibrate, play
+  sound or run timers while a page is hidden — so there is no way to buzz a phone
+  whose app is closed without Web Push. Rather than pretend, Yuzu shows her:
+  *"Kabir closed the app. You still can't."* Same rule as everything else — she
+  always finds out. Web Push (a real background buzz) is the roadmap slide.

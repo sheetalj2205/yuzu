@@ -159,7 +159,9 @@ The demo cannot die on stage. Test it: delete the key and it still works.
 
 - **He cannot stop his own phone.** Only she can.
 - **He never sees her words** until he's failed 5 times.
-- **She always finds out** how he did — win or lose.
+- **She always finds out** how he did — win or lose, including when he walks away.
+- **He can leave.** A hidden page cannot vibrate; that is the browser, not a bug.
+  So he is never trapped — his leaving just shows up on her screen.
 - **Nothing extra on either screen.**
 - The buzz loop is capped at 10 minutes. Deliberate — say so in the pitch.
 

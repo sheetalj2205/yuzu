@@ -2,6 +2,7 @@
 import { useState } from "react";
 import RoomScene from "./RoomScene";
 import type { Need } from "@/lib/types";
+import type { Presence } from "@/lib/presence";
 
 /**
  * HER PHONE. Rule: nothing on this screen that isn't the girl, a box,
@@ -22,7 +23,7 @@ export const HITS = [
 
 export default function HerScreen({
   partnerName, score, needs, gifts, incoming, waiting, failed, hits,
-  onSend, onVerdict, onStrike, onForgive,
+  partnerAt, leftCount, onSend, onVerdict, onStrike, onForgive,
 }: {
   partnerName: string | null;
   score: number;
@@ -32,6 +33,8 @@ export default function HerScreen({
   waiting: boolean;           // he has her message, hasn't sent yet
   failed: boolean;            // he burned all 5 tries
   hits: number;               // how many times she has hit back
+  partnerAt: Presence;        // is he actually looking at this?
+  leftCount: number;          // how many times he has wandered off this cycle
   onSend: (message: string, intensity: number) => void;
   onVerdict: (helped: boolean) => void;
   onStrike: (hit: typeof HITS[number]) => void;
@@ -51,6 +54,21 @@ export default function HerScreen({
       )}
 
       <RoomScene score={score} gifts={gifts} angry={failed} />
+
+      {/* He can put the phone down. He just can't do it quietly. */}
+      {sent && partnerAt !== "here" && (
+        <div className="card !py-3 border-pain bg-painSoft text-center pop">
+          <p className="font-round font-black text-sm text-pain">
+            {partnerAt === "gone"
+              ? `${partnerName ?? "He"} closed the app.`
+              : `${partnerName ?? "He"} put the phone down.`}
+          </p>
+          <p className="text-inkSoft text-xs mt-1">
+            {leftCount > 1 ? `That's ${leftCount} times. ` : ""}
+            You still can't.
+          </p>
+        </div>
+      )}
 
       {/* ---- he sent something: she sees it, then judges it ---- */}
       {incoming ? (
