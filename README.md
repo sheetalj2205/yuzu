@@ -49,6 +49,7 @@ Then edit `.env.local`:
 NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 GEMINI_API_KEY=AIza...
+GEMINI_MODEL=gemini-flash-latest
 ```
 
 ### 5. Start it

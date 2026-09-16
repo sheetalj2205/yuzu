@@ -50,44 +50,66 @@ export async function POST(req: Request) {
   const cached = cacheGet(ck);
   if (cached) return NextResponse.json(cached);
 
-  const key   = process.env.GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
+  const key = process.env.GEMINI_API_KEY;
+
+  /**
+   * A chain, not a single model — tried in order until one answers.
+   *
+   * Two things bite you otherwise, and both did during testing:
+   *  - Google retires versions (gemini-2.0-flash is already gone → 404)
+   *  - popular models return 503 "high demand" at random moments, which is
+   *    exactly what you do not want mid-demo
+   *
+   * "gemini-flash-latest" follows whatever is current; the pinned one behind it
+   * is the safety net. Override with a comma-separated GEMINI_MODEL if you like.
+   */
+  const models = (process.env.GEMINI_MODEL ?? "gemini-flash-latest,gemini-3.5-flash")
+    .split(",").map(m => m.trim()).filter(Boolean);
 
   if (!key) {
     console.warn("[translate] no GEMINI_API_KEY — using built-in rules");
     return NextResponse.json(fallback(message, level));
   }
 
-  try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: buildPrompt(message, level) }] }],
-          generationConfig: {
-            temperature: 0.4,
-            responseMimeType: "application/json",
-            responseSchema: RESPONSE_SCHEMA,
-          },
-        }),
-        signal: AbortSignal.timeout(15_000),
-      },
-    );
+  let lastError = "no models tried";
 
-    if (!res.ok) throw new Error(`gemini ${res.status}: ${await res.text()}`);
+  for (const model of models) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: buildPrompt(message, level) }] }],
+            generationConfig: {
+              temperature: 0.4,
+              responseMimeType: "application/json",
+              responseSchema: RESPONSE_SCHEMA,
+            },
+          }),
+          signal: AbortSignal.timeout(15_000),
+        },
+      );
 
-    const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error("gemini returned no text");
+      if (!res.ok) {
+        lastError = `${model} → ${res.status}`;
+        continue;                       // overloaded or gone: try the next one
+      }
 
-    const out = normalise(JSON.parse(text), level);
-    cacheSet(ck, out);
-    return NextResponse.json(out);
-  } catch (err) {
-    // Gemini is down, rate-limited, or slow. The demo does not stop.
-    console.warn("[translate] falling back:", (err as Error).message);
-    return NextResponse.json(fallback(message, level));
+      const data = await res.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) { lastError = `${model} → empty`; continue; }
+
+      const out = normalise(JSON.parse(text), level);
+      cacheSet(ck, out);
+      return NextResponse.json(out);
+    } catch (err) {
+      lastError = `${model} → ${(err as Error).message}`;
+    }
   }
+
+  // Every model failed. The demo does not stop.
+  console.warn("[translate] falling back:", lastError);
+  return NextResponse.json(fallback(message, level));
 }
