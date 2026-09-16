@@ -121,7 +121,50 @@ export async function POST(req: Request) {
     }
   }
 
-  // Every model failed. The demo does not stop.
+  /**
+   * Gemini is out. Try a second provider before giving up on AI entirely.
+   *
+   * Written against the OpenAI chat-completions shape, which most hosted
+   * providers speak — set the base URL, key and model and it just works.
+   * Today Gemini returned 503 "high demand" several times in a row, so this is
+   * not theoretical.
+   */
+  const altBase  = process.env.ALT_AI_BASE_URL;
+  const altKey   = process.env.ALT_AI_API_KEY;
+  const altModel = process.env.ALT_AI_MODEL;
+
+  if (altBase && altKey && altModel) {
+    try {
+      const res = await fetch(`${altBase.replace(/\/$/, "")}/chat/completions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${altKey}` },
+        body: JSON.stringify({
+          model: altModel,
+          temperature: 0.4,
+          response_format: { type: "json_object" },
+          messages: [{ role: "user", content: buildPrompt(message, level) }],
+        }),
+        signal: AbortSignal.timeout(25_000),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const text = data?.choices?.[0]?.message?.content;
+        if (text) {
+          const out = normalise(JSON.parse(text), level);
+          cacheSet(ck, out);
+          return NextResponse.json(out);
+        }
+        lastError = `${altModel} → empty`;
+      } else {
+        lastError = `${altModel} → ${res.status}`;
+      }
+    } catch (err) {
+      lastError = `${altModel} → ${(err as Error).message}`;
+    }
+  }
+
+  // Every provider failed. The demo does not stop.
   console.warn("[translate] falling back:", lastError);
   return NextResponse.json(fallback(message, level));
 }

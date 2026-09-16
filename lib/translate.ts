@@ -17,28 +17,31 @@ Her partner will NOT be shown her words. You are the app speaking TO HIM.
 IMPORTANT: her message may contain SEVERAL separate needs. Pull out every distinct one (1 to 3).
 She is not settled until every one of them is met.
 
-For EACH need, write three short hints addressed to him ("she", "her"), getting gradually
-clearer — never quoting or closely paraphrasing her sentence, and never naming a specific object.
-The hints for a need must be about THAT need only.
+For EACH need, write FIVE short hints addressed to him ("she", "her") — one for each of his
+five tries, getting clearer every single time. Hint 1 is almost nothing; hint 5 all but names
+what she wants without naming the object itself. Never quote or closely paraphrase her
+sentence. The hints for a need must be about THAT need only.
 
 Reply with ONLY this JSON, no other text:
 {"envelope":"swell"|"stab"|"grind"|"throb","peak":0-1,"pulse_ms":200-4000,
  "duration_s":10-180,"label":"3-5 word name for this sensation",
  "needs":[{"tag":"heat"|"meds"|"rest"|"company"|"warmth","label":"2-4 words, her side",
-           "hints":["vague, max 8 words","warmer, max 10 words","almost tells him, max 10 words"]}]}
+           "hints":["barely anything, max 7 words","a little clearer","clearer still",
+           "nearly says it","all but names it, max 10 words"]}]}
 
 Sharp or stabbing -> stab with short pulse_ms. Building or rolling -> swell.
 Constant heavy ache -> grind. Pulsing -> throb.
 Tags: cold or cramping -> heat. Very sharp pain -> meds. Exhausted, overwhelmed, can't
 sleep -> rest. Lonely, low, missing him -> company. Wants to be held or covered -> warmth.
 
-Example — "I am freezing, my back is killing me and I miss you" has THREE needs:
-[{"tag":"heat","label":"something warm",
-  "hints":["Something is cold.","She wants heat, not a drink.","Heat held against her, low down."]},
- {"tag":"meds","label":"the sharp pain",
-  "hints":["Warmth won't reach this one.","Something has to actually dull it.","She needs the pain blocked, not soothed."]},
- {"tag":"company","label":"him, nearby",
-  "hints":["She's on her own.","Being alone is part of it.","She wants your voice, not a parcel."]}]`;
+Example — "I am freezing, my back is killing me and I miss you" has THREE needs, and the
+heat one would read:
+{"tag":"heat","label":"something warm","hints":[
+  "Something is cold.",
+  "Cold from the inside out.",
+  "A drink will not reach it.",
+  "She needs heat held against her.",
+  "Steady warmth, pressed low on her back."]}`;
 }
 
 /* ---------------------------- validation ---------------------------- */
@@ -49,11 +52,16 @@ const clamp = (n: unknown, lo: number, hi: number, fb: number) => {
 
 /** Stock hints per tag — fills in when the model gives a need no hints of its own. */
 export const HINT_BANK: Record<Tag, string[]> = {
-  heat:    ["Something is cold.", "She wants heat, not a drink.", "Heat held against her, low down."],
-  meds:    ["Warmth won't reach this one.", "Something has to actually dull it.", "She needs the pain blocked, not soothed."],
-  rest:    ["She's running on empty.", "Something on her list has to go.", "Take tomorrow off her hands."],
-  company: ["She's on her own.", "Being alone is part of it.", "She wants your voice, not a parcel."],
-  warmth:  ["She wants weight on her.", "Something to curl up under.", "Cover her — not a hot drink."],
+  heat:    ["Something is cold.", "Cold from the inside out.", "A drink will not reach it.",
+            "She needs heat held against her.", "Steady warmth, pressed low on her back."],
+  meds:    ["This one is sharp.", "Comfort will not touch it.", "Warmth is not going to be enough.",
+            "Something has to actually dull it.", "She needs the pain blocked, not soothed."],
+  rest:    ["She is running on empty.", "It is not only her body.", "She has nothing left to give today.",
+            "Something on her list has to go.", "Take tomorrow off her hands."],
+  company: ["She is on her own.", "The room is too quiet.", "Being alone is making it worse.",
+            "A parcel will not fix this one.", "She wants your voice, right now."],
+  warmth:  ["She has curled up small.", "She wants to be covered.", "Something with weight to it.",
+            "Not a drink — something over her.", "Wrap her up and leave it there."],
 };
 
 export function normaliseNeeds(raw: unknown): Need[] {
@@ -65,7 +73,7 @@ export function normaliseNeeds(raw: unknown): Need[] {
       let tag = String(r.tag ?? "").toLowerCase() as Tag;
       if (!TAGS.includes(tag)) tag = "heat";
       const hints = Array.isArray(r.hints) && r.hints.length
-        ? r.hints.slice(0, 3).map(String)
+        ? r.hints.slice(0, 5).map(String)
         : HINT_BANK[tag];
       out.push({ tag, label: String(r.label ?? tag), hints, done: false });
     }
@@ -133,13 +141,14 @@ export function tickOff(needs: Need[], tag: string): Need[] {
 }
 
 /**
- * The hint he sees: always about the FIRST NEED STILL UNMET, getting clearer
- * with each try. Once she ticks "something warm" off, he stops being told
- * she is cold — that was the bug.
+ * The hint he sees: always about the FIRST NEED STILL UNMET, and one step
+ * clearer on EVERY try — not every other one. There are five hints for five
+ * tries; three stretched across five meant two of his guesses changed nothing,
+ * which read as the app being stuck.
  */
 export function hintFor(needs: Need[], tries: number): string | null {
   const open = unmet(needs);
   if (!open.length) return null;
   const hints = open[0].hints.length ? open[0].hints : HINT_BANK[open[0].tag];
-  return hints[Math.min(tries >= 4 ? 2 : tries >= 2 ? 1 : 0, hints.length - 1)];
+  return hints[Math.min(tries, hints.length - 1)];
 }
