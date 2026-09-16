@@ -157,7 +157,7 @@ Icons are generated pink hearts in `public/`. Swap them for your own art if you 
 
 ## What the AI does
 
-One Gemini call. Her sentence in, three things out:
+One call. Her sentence in, three things out:
 
 | Output | Why it needs AI |
 |---|---|
@@ -166,11 +166,19 @@ One Gemini call. Her sentence in, three things out:
 | **Hints per need** | He's nudged toward whatever is *still unfixed*, never told. Clearer each failed try. |
 
 Prompt: `lib/translate.ts`. Route: `app/api/translate/route.ts`.
-The browser never calls Gemini — the key stays server-side, and her message never
-reaches the phone of the person guessing.
 
-**If Gemini fails or the key is missing, built-in rules take over automatically.**
-The demo cannot die on stage. Test it: delete the key and it still works.
+**Three providers, tried in order, and the last one cannot fail:**
+
+1. **BullsAI** — `ALT_AI_BASE_URL`, `ALT_AI_API_KEY`, `ALT_AI_MODEL`
+2. **Gemini** — `GEMINI_API_KEY`, `GEMINI_MODEL` (itself a comma-separated chain)
+3. **Built-in rules** — no keys, no network, always works
+
+Any provider left unconfigured is skipped. Gemini returned 503 "high demand"
+several times during one afternoon of testing, which is exactly why this is a
+chain and not a single call.
+
+The browser never talks to any of them — the keys stay server-side, and her
+message never reaches the phone of the person guessing.
 
 ---
 

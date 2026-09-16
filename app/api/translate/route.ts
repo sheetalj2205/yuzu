@@ -1,16 +1,21 @@
 import { NextResponse } from "next/server";
 import { buildPrompt, fallback, normalise } from "@/lib/translate";
 import { cacheGet, cacheKey, cacheSet } from "@/lib/cache";
+import type { Translation } from "@/lib/types";
 
-export const runtime = "nodejs";   // edge runtime is deprecated as of Next 16
+export const runtime = "nodejs";
 
 /**
  * Her words in → a buzz pattern, every need she mentioned, and his hints out.
  *
- * Gemini runs in the cloud, so this works for anyone who opens the deployed
- * app — no local model, no laptop on the same wifi. The browser never calls
- * Gemini directly: the key stays server-side and her message never reaches
- * the client of whoever is guessing.
+ * Three providers, tried in order, and the last one cannot fail:
+ *
+ *   1. BullsAI      — the primary
+ *   2. Gemini       — if BullsAI is down or unset
+ *   3. built-in rules — if both are, so the demo never dies on stage
+ *
+ * None of it runs in the browser: the keys stay server-side, and her message
+ * never reaches the phone of the person trying to guess it.
  */
 
 /** Gemini returns JSON matching this shape — no "please reply with JSON" pleading. */
@@ -38,42 +43,53 @@ const RESPONSE_SCHEMA = {
   required: ["envelope", "peak", "pulse_ms", "duration_s", "label", "needs"],
 };
 
-export async function POST(req: Request) {
-  const { message, intensity } = await req.json();
-  if (typeof message !== "string" || !message.trim()) {
-    return NextResponse.json({ error: "message required" }, { status: 400 });
+type Attempt = { ok: true; value: Translation } | { ok: false; why: string };
+
+/** BullsAI — OpenAI chat-completions shape. */
+async function tryBullsAI(prompt: string, level: number): Promise<Attempt> {
+  const base  = process.env.ALT_AI_BASE_URL;
+  const key   = process.env.ALT_AI_API_KEY;
+  const model = process.env.ALT_AI_MODEL;
+  if (!base || !key || !model) return { ok: false, why: "bullsai not configured" };
+
+  try {
+    const res = await fetch(`${base.replace(/\/$/, "")}/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify({
+        model,
+        temperature: 0.4,
+        response_format: { type: "json_object" },
+        messages: [{ role: "user", content: prompt }],
+      }),
+      signal: AbortSignal.timeout(25_000),
+    });
+    if (!res.ok) return { ok: false, why: `bullsai ${res.status}` };
+
+    const data = await res.json();
+    const text = data?.choices?.[0]?.message?.content;
+    if (!text) return { ok: false, why: "bullsai returned no text" };
+
+    return { ok: true, value: normalise(JSON.parse(text), level) };
+  } catch (err) {
+    return { ok: false, why: `bullsai ${(err as Error).message}` };
   }
-  const level = Math.min(10, Math.max(1, Number(intensity) || 5));
+}
 
-  // Same words, same intensity? Reuse the answer. At a demo this is most of the traffic.
-  const ck = cacheKey(message, level);
-  const cached = cacheGet(ck);
-  if (cached) return NextResponse.json(cached);
-
+/**
+ * Gemini — a chain, because Google retires versions (2.0-flash is already a 404)
+ * and popular models return 503 "high demand" at random moments.
+ * "-lite" models have no reasoning to switch off and reject thinkingConfig.
+ */
+async function tryGemini(prompt: string, level: number): Promise<Attempt> {
   const key = process.env.GEMINI_API_KEY;
+  if (!key) return { ok: false, why: "gemini not configured" };
 
-  /**
-   * A chain, not a single model — tried in order until one answers.
-   *
-   * Two things bite you otherwise, and both did during testing:
-   *  - Google retires versions (gemini-2.0-flash is already gone → 404)
-   *  - popular models return 503 "high demand" at random moments, which is
-   *    exactly what you do not want mid-demo
-   *
-   * "gemini-flash-latest" follows whatever is current; the pinned one behind it
-   * is the safety net. Override with a comma-separated GEMINI_MODEL if you like.
-   */
   const models = (process.env.GEMINI_MODEL
     ?? "gemini-3.5-flash-lite,gemini-3.5-flash,gemini-flash-latest")
     .split(",").map(m => m.trim()).filter(Boolean);
 
-  if (!key) {
-    console.warn("[translate] no GEMINI_API_KEY — using built-in rules");
-    return NextResponse.json(fallback(message, level));
-  }
-
-  let lastError = "no models tried";
-
+  let why = "no gemini models tried";
   for (const model of models) {
     try {
       const res = await fetch(
@@ -82,89 +98,56 @@ export async function POST(req: Request) {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-goog-api-key": key },
           body: JSON.stringify({
-            contents: [{ role: "user", parts: [{ text: buildPrompt(message, level) }] }],
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
             generationConfig: {
               temperature: 0.4,
               responseMimeType: "application/json",
               responseSchema: RESPONSE_SCHEMA,
-              /**
-               * Gemini 3.x reasons before answering, which costs 6+ seconds on a
-               * task that is really classification plus three short lines. Turning
-               * it off took 8.3s down to 2.3s with no loss in quality.
-               *
-               * The "-lite" models have no thinking to disable and reject the
-               * option outright with a 400, so they do not get it.
-               */
+              // reasoning costs 6+ seconds on what is really classification
               ...(model.includes("lite") ? {} : { thinkingConfig: { thinkingBudget: 0 } }),
             },
           }),
-          // 12s was a real measured response time before thinking was disabled —
-          // leave generous headroom so a slow answer is not thrown away.
           signal: AbortSignal.timeout(25_000),
         },
       );
-
-      if (!res.ok) {
-        lastError = `${model} → ${res.status}`;
-        continue;                       // overloaded or gone: try the next one
-      }
+      if (!res.ok) { why = `${model} → ${res.status}`; continue; }
 
       const data = await res.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!text) { lastError = `${model} → empty`; continue; }
+      if (!text) { why = `${model} → empty`; continue; }
 
-      const out = normalise(JSON.parse(text), level);
-      cacheSet(ck, out);
-      return NextResponse.json(out);
+      return { ok: true, value: normalise(JSON.parse(text), level) };
     } catch (err) {
-      lastError = `${model} → ${(err as Error).message}`;
+      why = `${model} → ${(err as Error).message}`;
     }
   }
+  return { ok: false, why };
+}
 
-  /**
-   * Gemini is out. Try a second provider before giving up on AI entirely.
-   *
-   * Written against the OpenAI chat-completions shape, which most hosted
-   * providers speak — set the base URL, key and model and it just works.
-   * Today Gemini returned 503 "high demand" several times in a row, so this is
-   * not theoretical.
-   */
-  const altBase  = process.env.ALT_AI_BASE_URL;
-  const altKey   = process.env.ALT_AI_API_KEY;
-  const altModel = process.env.ALT_AI_MODEL;
+export async function POST(req: Request) {
+  const { message, intensity } = await req.json();
+  if (typeof message !== "string" || !message.trim()) {
+    return NextResponse.json({ error: "message required" }, { status: 400 });
+  }
+  const level = Math.min(10, Math.max(1, Number(intensity) || 5));
 
-  if (altBase && altKey && altModel) {
-    try {
-      const res = await fetch(`${altBase.replace(/\/$/, "")}/chat/completions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${altKey}` },
-        body: JSON.stringify({
-          model: altModel,
-          temperature: 0.4,
-          response_format: { type: "json_object" },
-          messages: [{ role: "user", content: buildPrompt(message, level) }],
-        }),
-        signal: AbortSignal.timeout(25_000),
-      });
+  // Same words, same intensity? Reuse the answer. At a demo that is most of the traffic.
+  const ck = cacheKey(message, level);
+  const cached = cacheGet(ck);
+  if (cached) return NextResponse.json(cached);
 
-      if (res.ok) {
-        const data = await res.json();
-        const text = data?.choices?.[0]?.message?.content;
-        if (text) {
-          const out = normalise(JSON.parse(text), level);
-          cacheSet(ck, out);
-          return NextResponse.json(out);
-        }
-        lastError = `${altModel} → empty`;
-      } else {
-        lastError = `${altModel} → ${res.status}`;
-      }
-    } catch (err) {
-      lastError = `${altModel} → ${(err as Error).message}`;
+  const prompt = buildPrompt(message, level);
+  const reasons: string[] = [];
+
+  for (const provider of [tryBullsAI, tryGemini]) {
+    const attempt = await provider(prompt, level);
+    if (attempt.ok) {
+      cacheSet(ck, attempt.value);
+      return NextResponse.json(attempt.value);
     }
+    reasons.push(attempt.why);
   }
 
-  // Every provider failed. The demo does not stop.
-  console.warn("[translate] falling back:", lastError);
+  console.warn("[translate] falling back to rules:", reasons.join(" | "));
   return NextResponse.json(fallback(message, level));
 }
