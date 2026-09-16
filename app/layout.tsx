@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import InstallPrompt from "@/components/InstallPrompt";
+import BuzzPulse from "@/components/BuzzPulse";
 
 export const metadata: Metadata = {
   title: "Yuzu",
@@ -37,6 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="font-body text-ink antialiased">
         {children}
+        <BuzzPulse />
         <InstallPrompt />
       </body>
     </html>

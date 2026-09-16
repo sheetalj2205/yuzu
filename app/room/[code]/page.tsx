@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase-client";
-import { buzzComfort, buzzPain, startBuzzLoop, stopBuzz } from "@/lib/haptics";
+import { buzzComfort, buzzPain, buzzStrike, startBuzzLoop, stopBuzz } from "@/lib/haptics";
 import { hintFor, score as scoreOf, tickOff, unmet } from "@/lib/translate";
 import { MAX_TRIES, type Item, type Need, type Pattern } from "@/lib/types";
 import HerScreen, { HITS, type Gift } from "@/components/HerScreen";
@@ -72,9 +72,12 @@ export default function Room() {
         ({ new: row }) => {
           const g = row as unknown as Gift & { verdict: string };
           if (g.tag === "strike") {                                // she is hitting back
-            if (me === "him") { buzzPain({ ...(cycleRef.current?.pattern as Pattern),
-              envelope: "stab", peak: 1, pulse_ms: 320 }); setBuzzing(true);
-              setTimeout(() => setBuzzing(false), 800); }
+            if (me === "him") {
+              const hit = HITS.find(h => h.word === g.name);
+              buzzStrike(hit?.pattern ?? [320, 70, 320]);
+              setBuzzing(true);
+              setTimeout(() => setBuzzing(false), 800);
+            }
             return;
           }
           if (me === "her") { setIncoming(g); buzzComfort(); }   // HER phone: soft, warm

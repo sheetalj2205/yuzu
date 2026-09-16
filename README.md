@@ -69,8 +69,17 @@ Both phones on the same wifi → `http://<that-ip>:3000`
 - **His phone:** sign in → *"I'm here to help"* → type the code
 - She writes how she feels → **his phone buzzes**
 
-> ⚠️ Vibration works in **Chrome on Android**. iOS Safari has no Vibration API.
-> Demo on Android.
+### iPhone vs Android
+
+| | Android (Chrome) | iPhone (Safari) |
+|---|---|---|
+| Install as an app | ✅ install button | ✅ Share → Add to Home Screen |
+| Everything else | ✅ | ✅ |
+| **Real vibration** | ✅ | ❌ Safari has never shipped the Vibration API |
+| Instead, iPhone gets | — | full-screen **pulse** on the same rhythm, plus an optional low **tone** through the speaker (🔇 toggle, top right) |
+
+**Demo on Android.** The pulse is a good fallback, not a replacement — the whole
+point of Yuzu is something you feel without looking at the screen.
 
 ---
 
