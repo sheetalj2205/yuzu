@@ -28,6 +28,11 @@ export default function RoomGate() {
         const fresh = makeCuddleCode();
         await sb.from("rooms").insert({ code: fresh, her_id: user.id });
         setCode(fresh);
+      } else {
+        // he is already in a room — do not make him type the code again
+        const { data: his } = await sb.from("rooms").select("code").eq("him_id", user.id)
+          .order("created_at", { ascending: false }).limit(1).maybeSingle();
+        if (his?.code) return router.replace(`/room/${his.code}`);
       }
     })();
   }, [router]);
