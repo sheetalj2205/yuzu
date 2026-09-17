@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "NEXT_PUBLIC_BUILD=$(git rev-parse --short HEAD 2>/dev/null || echo vercel) next build",
+    "build": "NEXT_PUBLIC_BUILD=${VERCEL_GIT_COMMIT_SHA:-$(git rev-parse HEAD 2>/dev/null || echo local)} next build",
     "start": "next start"
   },
   "dependencies": {

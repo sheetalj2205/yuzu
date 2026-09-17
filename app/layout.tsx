@@ -34,7 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             opens in browser chrome instead of as an app. */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         {/* so anyone can check what is actually live, without guessing at chunk names */}
-        <meta name="yuzu-build" content={process.env.NEXT_PUBLIC_BUILD ?? "dev"} />
+        <meta name="yuzu-build" content={(process.env.NEXT_PUBLIC_BUILD ?? "dev").slice(0, 7)} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
