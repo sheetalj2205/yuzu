@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { BUZZ_EVENT } from "@/lib/haptics";
-import { unlockAudio } from "@/lib/sound";
+import { cue, playHit, playPhew, unlockAudio } from "@/lib/sound";
 
 /**
  * What an iPhone gets instead of a vibration.
@@ -20,6 +20,13 @@ export default function BuzzPulse() {
     /* Wake the audio clock on his first touch, and again whenever he comes back
        to the tab. Without this her punch lands on a sleeping context and makes
        no sound at all. */
+    /* Dev only: lets the sounds be auditioned from the console without playing a
+       whole round. window.yuzuSound.hit("BONK!"), .phew(), .cue("kiss") */
+    if (process.env.NODE_ENV !== "production") {
+      (window as unknown as { yuzuSound?: unknown }).yuzuSound =
+        { hit: playHit, phew: playPhew, cue };
+    }
+
     const wake = () => unlockAudio();
     const onVisible = () => { if (!document.hidden) unlockAudio(); };
     window.addEventListener("pointerdown", wake, { once: false, passive: true });

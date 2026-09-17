@@ -89,81 +89,118 @@ function noise(c: AudioContext, at: number, dur: number, gain: number,
   src.stop(at + dur + 0.02);
 }
 
-/** A pitch-dropping sine, the body of the impact. */
-function boom(c: AudioContext, at: number, from: number, to: number, dur: number, gain: number) {
+/** A pitch-dropping tone: the body of an impact. */
+function thump(c: AudioContext, at: number, from: number, to: number,
+               dur: number, gain: number, wave: OscillatorType = "sine") {
   const osc = c.createOscillator();
   const g = c.createGain();
-  osc.type = "sine";
+  osc.type = wave;
   osc.frequency.setValueAtTime(from, at);
-  osc.frequency.exponentialRampToValueAtTime(to, at + dur);
+  osc.frequency.exponentialRampToValueAtTime(Math.max(20, to), at + dur);
   g.gain.setValueAtTime(0, at);
-  g.gain.linearRampToValueAtTime(gain, at + 0.008);
+  g.gain.linearRampToValueAtTime(gain, at + 0.006);
   g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
   osc.connect(g).connect(c.destination);
   osc.start(at);
   osc.stop(at + dur + 0.02);
 }
 
-/** One "dhish", whoosh in, crack, boom. */
+/**
+ * One "dhish": a wind-up, a landing, and a tail.
+ *
+ * The first version was over in a tenth of a second and read as a click. A
+ * screen punch has three parts you actually hear: the arm travelling, the
+ * moment it lands, and the room ringing afterwards. The tail is most of what
+ * makes it feel like a hit rather than a tap.
+ */
 function dhish(c: AudioContext, at: number, pitch = 1, heft = 1) {
-  noise(c, at, 0.10, 0.22 * heft, "bandpass", 900 * pitch, 1.2, 2600 * pitch);  // the arm
-  noise(c, at + 0.085, 0.09, 0.5 * heft, "highpass", 1700 * pitch, 0.7);        // the crack
-  boom(c, at + 0.085, 150 * pitch, 42, 0.30, 0.65 * heft);                      // the weight
+  // the arm: a rising whoosh, long enough to anticipate the hit
+  noise(c, at, 0.26, 0.20 * heft, "bandpass", 420 * pitch, 1.1, 2400 * pitch);
+
+  const land = at + 0.24;
+  // the crack of contact
+  noise(c, land, 0.13, 0.5 * heft, "highpass", 1500 * pitch, 0.7);
+  // the weight behind it
+  thump(c, land, 190 * pitch, 38, 0.45, 0.7 * heft);
+  // a second lower body so it lands in the chest, not the ear
+  thump(c, land + 0.01, 95 * pitch, 30, 0.6, 0.45 * heft, "triangle");
+  // the room ringing after
+  noise(c, land + 0.05, 0.5, 0.1 * heft, "lowpass", 900 * pitch, 0.8, 200);
+  // one slap-back, so it sounds like it happened somewhere
+  noise(c, land + 0.14, 0.2, 0.12 * heft, "bandpass", 1100 * pitch, 1.4, 600);
+  thump(c, land + 0.14, 120 * pitch, 34, 0.3, 0.2 * heft);
 }
 
 /**
- * dhishoom. Two hits, the second heavier, that is the rhythm of the word.
+ * dhishoom. Two hits, the second heavier, which is the rhythm of the word.
  * Each button varies pitch and weight so a fist is not a mallet.
  */
 const HITS: Record<string, { pitch: number; heft: number; gap: number }> = {
-  "POW!":   { pitch: 0.85, heft: 1.00, gap: 0.16 },   // fist: blunt, low
-  "BONK!":  { pitch: 0.55, heft: 1.15, gap: 0.20 },   // mallet: deepest, slowest
-  "SMACK!": { pitch: 1.35, heft: 0.80, gap: 0.12 },   // glove: high, fast, flat
-  "ZAP!":   { pitch: 1.80, heft: 0.65, gap: 0.08 },   // lightning: thin, snappy
+  "POW!":   { pitch: 0.85, heft: 1.00, gap: 0.38 },   // fist: blunt, low
+  "BONK!":  { pitch: 0.52, heft: 1.20, gap: 0.46 },   // mallet: deepest, slowest
+  "SMACK!": { pitch: 1.30, heft: 0.85, gap: 0.30 },   // glove: high and quick
+  "ZAP!":   { pitch: 1.75, heft: 0.70, gap: 0.24 },   // lightning: thin, snappy
 };
 
 export function playHit(word?: string) {
-  const c = ensureCtx();
-  if (!c) return;
   const { pitch, heft, gap } = HITS[word ?? "POW!"] ?? HITS["POW!"];
-  const at = c.currentTime + 0.01;
-  dhish(c, at, pitch, heft * 0.85);            // dhish…
-  dhish(c, at + gap, pitch * 0.92, heft);      // …oom
+  whenAwake((c) => {
+    const at = c.currentTime + 0.01;
+    dhish(c, at, pitch, heft * 0.8);                       // dhish...
+    dhish(c, at + gap, pitch * 0.88, heft * 1.1);          // ...OOM, heavier
+    // and the low end rolls on after both, which is what you feel
+    thump(c, at + gap + 0.24, 70 * pitch, 26, 0.9, 0.3 * heft, "sine");
+  });
 }
 
 /**
  * What an iPhone gets instead of a vibration.
  *
- * iOS Safari has no Vibration API at all, so on those devices a buzz is silent
- * and invisible unless we make it audible. These are the buzz patterns played
- * as sound, using the same rhythm the motor would have used: hard and buzzy for
- * her cramp, low and round for his comfort.
+ * iOS Safari has no Vibration API at all, so on those devices a buzz would be
+ * silent and invisible unless we make it audible. Here sound is not a
+ * soundtrack, it IS the buzz.
+ *
+ * Deliberately soft. The first version was a sawtooth and a square, which was
+ * accurate to a phone motor and horrible to listen to for five days a month.
+ * These are sines with a rounded attack and a gentle low-pass, so it reads as a
+ * hum you feel rather than a rasp you flinch at. Her cramp is a little higher
+ * and firmer than his comfort, but neither is harsh.
  */
 export function playBuzz(pattern: number[], kind: "pain" | "comfort") {
   whenAwake((c) => {
+    const soften = c.createBiquadFilter();
+    soften.type = "lowpass";
+    soften.frequency.value = kind === "pain" ? 320 : 220;
+    soften.Q.value = 0.7;
+    soften.connect(c.destination);
+
     let at = c.currentTime + 0.01;
     for (let i = 0; i < pattern.length; i += 2) {
       const on = pattern[i] / 1000;
       const off = (pattern[i + 1] ?? 0) / 1000;
       if (on <= 0) { at += off; continue; }
 
+      const peak = kind === "pain" ? 0.26 : 0.18;
+      const rise = Math.min(0.045, on * 0.35);      // no clicky edges
       const bus = c.createGain();
       bus.gain.setValueAtTime(0, at);
-      bus.gain.linearRampToValueAtTime(kind === "pain" ? 0.34 : 0.2, at + 0.01);
-      bus.gain.setValueAtTime(kind === "pain" ? 0.34 : 0.2, Math.max(at + 0.011, at + on - 0.02));
+      bus.gain.linearRampToValueAtTime(peak, at + rise);
+      bus.gain.setValueAtTime(peak, Math.max(at + rise + 0.001, at + on - rise));
       bus.gain.linearRampToValueAtTime(0, at + on);
-      bus.connect(c.destination);
+      bus.connect(soften);
 
       const partials = kind === "pain"
-        ? [["sawtooth", 58], ["square", 172]] as const
-        : [["sine", 48], ["sine", 96]] as const;
-      for (const [wave, hz] of partials) {
+        ? [[88, 1], [132, 0.35], [176, 0.12]] as const      // a fifth above: firm, not sharp
+        : [[62, 1], [93, 0.28]] as const;                    // lower, rounder
+      for (const [hz, mix] of partials) {
         const osc = c.createOscillator();
-        osc.type = wave;
+        const g = c.createGain();
+        osc.type = "sine";
         osc.frequency.value = hz;
-        osc.connect(bus);
+        g.gain.value = mix;
+        osc.connect(g).connect(bus);
         osc.start(at);
-        osc.stop(at + on + 0.02);
+        osc.stop(at + on + 0.03);
       }
       at += on + off;
     }
@@ -171,24 +208,39 @@ export function playBuzz(pattern: number[], kind: "pain" | "comfort") {
 }
 
 /**
- * "phewww". A long falling sigh for a wrong guess: filtered noise sweeping down,
- * with a pitch falling under it. Deflating on purpose.
+ * "phewww". A long, deflating sigh for a wrong guess.
+ *
+ * The first attempt was too quiet and too quick to register at all. This one
+ * runs for well over a second, is three times louder, and falls the whole way
+ * down: breath sweeping from bright to dark, with a pitch sagging underneath
+ * it and a last little slump at the end.
  */
 export function playPhew() {
   whenAwake((c) => {
     const at = c.currentTime + 0.01;
-    noise(c, at, 0.75, 0.2, "bandpass", 2200, 3.5, 320);   // the air going out
+
+    // the breath: bright at first, closing to nothing
+    noise(c, at, 1.25, 0.5, "bandpass", 2600, 2.0, 260);
+    // a touch of body under it so it is not only hiss
+    noise(c, at + 0.04, 1.0, 0.22, "lowpass", 900, 0.8, 180);
+
+    // the sag
     const osc = c.createOscillator();
     const g = c.createGain();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(420, at);
-    osc.frequency.exponentialRampToValueAtTime(110, at + 0.7);
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(560, at);
+    osc.frequency.exponentialRampToValueAtTime(190, at + 0.55);
+    osc.frequency.exponentialRampToValueAtTime(88, at + 1.25);
     g.gain.setValueAtTime(0, at);
-    g.gain.linearRampToValueAtTime(0.16, at + 0.05);
-    g.gain.exponentialRampToValueAtTime(0.0001, at + 0.75);
+    g.gain.linearRampToValueAtTime(0.34, at + 0.07);
+    g.gain.setValueAtTime(0.34, at + 0.45);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + 1.3);
     osc.connect(g).connect(c.destination);
     osc.start(at);
-    osc.stop(at + 0.8);
+    osc.stop(at + 1.35);
+
+    // the last slump, like shoulders dropping
+    thump(c, at + 1.05, 150, 52, 0.5, 0.2, "sine");
   });
 }
 
