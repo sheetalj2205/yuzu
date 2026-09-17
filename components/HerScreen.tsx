@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import RoomScene from "./RoomScene";
 import type { Need } from "@/lib/types";
 import type { Presence } from "@/lib/presence";
@@ -36,14 +36,29 @@ export default function HerScreen({
   won: boolean;               // everything she asked for just landed
   partnerAt: Presence;        // is he actually looking at this?
   leftCount: number;          // how many times he has wandered off this cycle
-  onSend: (message: string, intensity: number) => void;
+  onSend: (message: string, intensity: number) => void | Promise<void>;
   onVerdict: (helped: boolean) => void;
   onStrike: (hit: typeof HITS[number]) => void;
   onForgive: () => void;
 }) {
   const [msg, setMsg] = useState("");
   const [level, setLevel] = useState(8);
+  const [sending, setSending] = useState<"idle" | "sending" | "sent">("idle");
   const sent = needs.length > 0;
+
+  /* Back to a blank box whenever a round ends, so she is never editing the last
+     message by mistake. */
+  useEffect(() => {
+    if (!sent) { setMsg(""); setSending("idle"); }
+  }, [sent]);
+
+  const send = async () => {
+    const text = msg.trim();
+    if (!text || sending !== "idle") return;
+    setSending("sending");
+    await onSend(text, level);
+    setSending("sent");
+  };
 
   return (
     <main className="min-h-dvh px-4 py-5 max-w-md mx-auto flex flex-col gap-4 justify-center">
@@ -117,9 +132,14 @@ export default function HerScreen({
           </button>
         </div>
       ) : sent ? (
-        <p className="text-center font-round font-bold text-inkSoft">
-          {waiting ? "He's trying…" : "Sent. His phone is buzzing."}
-        </p>
+        <div className="card text-center">
+          <p className="font-round font-black text-base mb-1">Sent ✓</p>
+          <p className="text-inkSoft text-sm">
+            {waiting
+              ? `${partnerName ?? "He"}'s phone is buzzing. He's trying to work it out.`
+              : `${partnerName ?? "He"}'s phone is buzzing.`}
+          </p>
+        </div>
       ) : (
         /* ---- nothing sent yet: box, slider, button. nothing else. ---- */
         <>
@@ -144,8 +164,14 @@ export default function HerScreen({
               {level} · {LEVELS[level]}
             </span>
           </div>
-          <button className="btn" disabled={!msg.trim()} onClick={() => onSend(msg.trim(), level)}>
-            Send it to him →
+          <button
+            className={`btn ${sending === "sent" ? "btn-warm" : ""}`}
+            disabled={!msg.trim() || sending !== "idle"}
+            onClick={send}
+          >
+            {sending === "sending" ? "Sending…"
+              : sending === "sent" ? "Sent ✓"
+              : "Send it to him →"}
           </button>
         </>
       )}

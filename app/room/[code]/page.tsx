@@ -43,6 +43,7 @@ export default function Room() {
   const cycleRef = useRef<Cycle | null>(null);
   const meRef = useRef<"her" | "him" | null>(null);
   const judged = useRef<Set<string>>(new Set());   // gifts she has already answered
+  const finished = useRef<Set<string>>(new Set());  // rounds she has ended herself
 
   /* Kept fresh ABOVE every effect that reads them. React runs effects in the
      order they are declared, so assigning these lower down meant the gift poll
@@ -201,6 +202,10 @@ export default function Room() {
       setCycle(prev => {
         const next = (data as Cycle | null) ?? null;
         if (!next) return null;                 // nothing open: the round is over
+        // she ended this one; the closing write may still be in flight, and
+        // resurrecting it threw her back to "his phone is buzzing" while she
+        // was halfway through typing the next message
+        if (finished.current.has(next.id)) return null;
         // only replace when something actually moved, so we do not fight local state
         const moved = !prev || prev.id !== next.id || prev.tries !== next.tries ||
                       prev.revealed !== next.revealed ||
@@ -359,6 +364,7 @@ export default function Room() {
     await sb.from("cycles").update({ needs, closed_at }).eq("id", cycle.id);
     const next = { ...cycle, needs, closed_at };
     if (done) {
+      finished.current.add(cycle.id);
       // let her sit in the warm room for a moment before the box comes back
       setWon(true);
       setTimeout(() => { setWon(false); setCycle(null); }, 4500);
@@ -390,6 +396,7 @@ export default function Room() {
 
   const forgive = useCallback(async () => {
     if (!cycle) return;
+    finished.current.add(cycle.id);
     const closed = { ...cycle, closed_at: new Date().toISOString() };
     await sb.from("cycles").update({ closed_at: closed.closed_at }).eq("id", cycle.id);
     // wipe it here and on his phone, so neither of us is left in the old round
