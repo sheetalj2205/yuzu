@@ -36,9 +36,11 @@ export default function Room() {
   const [partnerAt, setPartnerAt] = useState<Presence>("gone");
   const [leftCount, setLeftCount] = useState(0);
   const [pow, setPow]           = useState<string | null>(null);   // comic hit on HIS screen
+  const [love, setLove]         = useState<{ kind: "heart" | "kiss"; n: number } | null>(null);
   const [push, setPush]         = useState<PushState>("unsupported");
   const stopLoop = useRef<null | (() => void)>(null);
   const cycleRef = useRef<Cycle | null>(null);
+  const meRef = useRef<"her" | "him" | null>(null);
 
 
   /* ---------------- join the room ---------------- */
@@ -107,6 +109,20 @@ export default function Room() {
       buzzComfort();
     });
 
+    ch.on("broadcast", { event: "heart" }, () => {
+      if (me !== "him") return;
+      cue("heart"); buzzComfort();
+      setLove({ kind: "heart", n: Date.now() });
+      setTimeout(() => setLove(null), 2200);
+    });
+
+    ch.on("broadcast", { event: "kisses" }, () => {
+      if (me !== "him") return;
+      cue("kiss"); buzzComfort();
+      setLove({ kind: "kiss", n: Date.now() });
+      setTimeout(() => setLove(null), 3200);
+    });
+
     ch.on("broadcast", { event: "strike" }, ({ payload }) => {
       if (me !== "him") return;
       const word = String(payload?.word ?? "POW!");
@@ -138,9 +154,10 @@ export default function Room() {
    * Safety net under the broadcast.
    *
    * Broadcast is instant but has no replay — anything sent while he was between
-   * page loads, asleep, or off signal is simply gone, and he would sit there
-   * looking at a stale screen until he refreshed. So every few seconds we also
-   * just ask the database what the open cycle is.
+   * page loads, asleep, off signal, or a second before he subscribed is simply
+   * gone, and he would sit there looking at a stale screen until he refreshed.
+   * So we also ask the database outright, every 1.5s and whenever he returns to
+   * the tab. Worst case he waits a second and a half; he never has to refresh.
    */
   useEffect(() => {
     if (!roomId) return;
@@ -151,18 +168,34 @@ export default function Room() {
       const { data } = await sb.from("cycles").select("*").eq("room_id", roomId)
         .is("closed_at", null).order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (stop) return;
+
+      /**
+       * Gifts need the same net as cycles. They only ever arrived by broadcast,
+       * so if she was on another tab when he sent one, she never saw it and he
+       * sat waiting on a verdict that could not come.
+       */
+      const open = data as Cycle | null;
+      if (open && meRef.current === "her") {
+        const { data: pending } = await sb.from("gifts")
+          .select("id, emoji, name, tag").eq("cycle_id", open.id).eq("verdict", "pending")
+          .order("created_at", { ascending: false }).limit(1).maybeSingle();
+        if (!stop && pending) {
+          setIncoming(prev => (prev?.id === pending.id ? prev : pending as Gift));
+        }
+      }
+
       setCycle(prev => {
         const next = (data as Cycle | null) ?? null;
-        if (!next) return prev?.closed_at === undefined && prev ? null : prev && !next ? null : next;
+        if (!next) return null;                 // nothing open: the round is over
         // only replace when something actually moved, so we do not fight local state
-        if (!prev || prev.id !== next.id || prev.tries !== next.tries ||
-            JSON.stringify(prev.needs) !== JSON.stringify(next.needs) ||
-            prev.revealed !== next.revealed) return next;
-        return prev;
+        const moved = !prev || prev.id !== next.id || prev.tries !== next.tries ||
+                      prev.revealed !== next.revealed ||
+                      JSON.stringify(prev.needs) !== JSON.stringify(next.needs);
+        return moved ? next : prev;
       });
     };
 
-    const id = setInterval(sync, 4000);
+    const id = setInterval(sync, 1500);
     document.addEventListener("visibilitychange", sync);
     void sync();
     return () => { stop = true; clearInterval(id); document.removeEventListener("visibilitychange", sync); };
@@ -185,6 +218,7 @@ export default function Room() {
   }, [me, cycle]);
 
   useEffect(() => { cycleRef.current = cycle; }, [cycle]);
+  useEffect(() => { meRef.current = me; }, [me]);
 
   /**
    * Keep HIS screen awake while a cycle is open. A sleeping screen is a hidden
@@ -257,16 +291,12 @@ export default function Room() {
   /* ---------------- he sends ---------------- */
   const sendGift = useCallback(async (item: Item) => {
     if (!cycle) return;
-    await sb.from("gifts").insert({
+    const { data: row } = await sb.from("gifts").insert({
       cycle_id: cycle.id, emoji: item.emoji, name: item.name, tag: item.tag,
-    });
-    const tries = cycle.tries + 1;
-    const revealed = tries >= MAX_TRIES;
-    await sb.from("cycles").update({ tries, revealed }).eq("id", cycle.id);
-    const next = { ...cycle, tries, revealed };
-    setCycle(next);
-    say("gift", { gift: { emoji: item.emoji, name: item.name, tag: item.tag } });
-    say("cycle", { cycle: next });
+    }).select("id").single();
+
+    // sending costs him nothing — only being wrong does
+    say("gift", { gift: { id: row?.id, emoji: item.emoji, name: item.name, tag: item.tag } });
   }, [sb, cycle, say]);
 
   const addFavourite = useCallback(async (emoji: string, name: string) => {
@@ -280,12 +310,18 @@ export default function Room() {
     if (!cycle || !incoming) return;
     const gift = incoming;
     setIncoming(null);
+    if (gift.id) void sb.from("gifts").update({ verdict: helped ? "helped" : "no" }).eq("id", gift.id);
 
     if (!helped) {
       cue("wrong");
+      const tries = cycle.tries + 1;
+      const revealed = tries >= MAX_TRIES;
+      await sb.from("cycles").update({ tries, revealed }).eq("id", cycle.id);
+      const next = { ...cycle, tries, revealed };
+      setCycle(next);
+      say("cycle", { cycle: next });
       void pushPartner("Not that.", "She said it didn't help. Try something else.",
                        [200, 80, 200, 80, 200, 80, 400], "yuzu-nope");
-      say("cycle", { cycle });          // his hint/counter refresh
       return;
     }
 
@@ -298,6 +334,15 @@ export default function Room() {
     const next = { ...cycle, needs, closed_at };
     setCycle(done ? null : next);
     say("cycle", { cycle: next });
+
+    // he should feel her saying yes — a heart each time, kisses when it is all done
+    say(done ? "kisses" : "heart", { left: unmet(needs).length });
+    void pushPartner(
+      done ? "All of it ♡" : "That helped ♡",
+      done ? "She says you got there." : `${unmet(needs).length} to go.`,
+      done ? [120, 90, 120, 90, 320] : [140, 120, 140],
+      done ? "yuzu-kiss" : "yuzu-heart",
+    );
   }, [sb, cycle, incoming, pushPartner, say]);
 
   /* he failed — she hits back, and every hit fires his phone */
@@ -353,6 +398,8 @@ export default function Room() {
       custom={custom}
       push={push}
       pow={pow}
+      love={love?.kind ?? null}
+      needCount={needs.length}
       onEnablePush={turnOnPush}
       onSend={sendGift}
       onAddFavourite={addFavourite}

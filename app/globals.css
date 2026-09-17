@@ -74,3 +74,22 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .pow-text, .burst { animation-duration: .01ms; animation-iteration-count: 1 }
 }
+
+
+/* ---- she said it helped: hearts, then kisses ---- */
+.love-float {
+  position: absolute;
+  bottom: -10%;
+  line-height: 1;
+  animation: loveUp 2.2s cubic-bezier(.3,.6,.4,1) both;
+  filter: drop-shadow(0 3px 6px rgba(160,40,90,.28));
+}
+@keyframes loveUp {
+  0%   { transform: translateY(0) scale(.5) rotate(-8deg); opacity: 0 }
+  15%  { opacity: 1 }
+  80%  { opacity: 1 }
+  100% { transform: translateY(-105vh) scale(1.1) rotate(10deg); opacity: 0 }
+}
+@media (prefers-reduced-motion: reduce) {
+  .love-float { animation-duration: .01ms }
+}

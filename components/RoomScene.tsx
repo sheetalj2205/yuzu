@@ -13,8 +13,15 @@ const GIFT_SLOTS: [number, number][] = [
 ];
 
 export default function RoomScene({
-  score, gifts, angry = false,
-}: { score: number; gifts: { emoji: string; name: string }[]; angry?: boolean }) {
+  score, gifts, angry = false, fill = false,
+}: {
+  score: number;
+  gifts: { emoji: string; name: string }[];
+  angry?: boolean;
+  /** Let the room grow on a tall phone. It keeps its shape — cropping it
+   *  loses the window and the lamp, which are how you read her mood. */
+  fill?: boolean;
+}) {
   const band = score > 65 ? 0 : score > 40 ? 1 : score > 20 ? 2 : 3;
   const t = 1 - score / 100;
 
@@ -24,8 +31,10 @@ export default function RoomScene({
   const hurt = score > 35;
 
   return (
-    <div className="relative rounded-blob overflow-hidden border-2 border-line">
-      <svg viewBox="0 0 520 300" className="block w-full h-auto" role="img"
+    <div className={`relative rounded-blob overflow-hidden border-2 border-line
+                     ${fill ? "w-full" : ""}`}>
+      <svg viewBox="0 0 520 300" role="img"
+           className="block w-full h-auto"
            aria-label="Her room — it warms up as her pain goes down">
         <defs>
           <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">

@@ -1,6 +1,6 @@
 "use client";
 import type { Pattern } from "./types";
-import { playPattern } from "./sound";
+import { playHit } from "./sound";
 
 /**
  * Haptics, with an honest iPhone story.
@@ -8,8 +8,8 @@ import { playPattern } from "./sound";
  * Android Chrome has navigator.vibrate and gets the real thing.
  * iOS Safari has never shipped the Vibration API — there is no flag, no
  * permission, no polyfill. So on iPhone we render the buzz instead of feeling
- * it: the screen pulses to the same rhythm, and sound (lib/sound.ts) carries
- * the same pattern through the speaker. Not as good. Far better than nothing.
+ * it: the screen pulses to the same rhythm it would have buzzed with.
+ * Not as good. Far better than nothing.
  */
 
 export const canVibrate = () =>
@@ -27,10 +27,18 @@ function announce(pattern: number[], kind: "pain" | "comfort") {
 
 /* ---------------- the buzzes ---------------- */
 
-function fire(pattern: number[], kind: "pain" | "comfort" | "strike") {
+/**
+ * A buzz is a buzz — no soundtrack.
+ *
+ * The cramp and the comfort are felt, not heard: a rattling tone playing out of
+ * a phone in a quiet room reads as a bug, not as pain. The only thing that makes
+ * a noise in Yuzu is her hitting back, which is meant to be heard.
+ *
+ * The screen pulse still runs everywhere, because an iPhone cannot vibrate at all.
+ */
+function fire(pattern: number[], kind: "pain" | "comfort") {
   if (canVibrate()) { try { navigator.vibrate(pattern); } catch {} }
-  announce(pattern, kind === "strike" ? "pain" : kind);  // pulse runs on every device
-  playPattern(pattern, kind);                            // silent unless sound is on
+  announce(pattern, kind);
 }
 
 /** HER cramp on HIS phone: short, hard, jabbing. */
@@ -47,11 +55,11 @@ export function buzzComfort() {
   fire([180, 520, 220, 520, 260], "comfort");
 }
 
-/** She hits back. Each strike carries its own rhythm — and its own sound. */
+/** She hits back — the one thing in Yuzu you hear as well as feel. */
 export function buzzStrike(pattern: number[], word?: string) {
   if (canVibrate()) { try { navigator.vibrate(pattern); } catch {} }
   announce(pattern, "pain");
-  playPattern(pattern, "strike", word);
+  playHit(word);
 }
 
 export function stopBuzz() {

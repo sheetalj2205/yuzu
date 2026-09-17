@@ -28,6 +28,12 @@ export type Item = {
   custom?: boolean;
 };
 
-/** He gets three goes. After that she sees her words revealed to him —
- *  and his phone keeps going until she says every need is met. */
+/**
+ * Three WRONG guesses for the whole message, however many things she needs.
+ *
+ * Getting one right costs him nothing — he can tick off all three needs without
+ * ever spending a life. Only "not really" counts. And running out does not stop
+ * the buzzing: that stops when she says every need is met, not when he runs out
+ * of chances.
+ */
 export const MAX_TRIES = 3;

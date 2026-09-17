@@ -11,7 +11,7 @@ import type { PushState } from "@/lib/push";
  */
 export default function HisScreen({
   partnerName, hint, tries, unmetCount, revealedMessage, buzzing, custom,
-  push, pow, onSend, onAddFavourite, onEnablePush,
+  push, pow, love, needCount, onSend, onAddFavourite, onEnablePush,
 }: {
   partnerName: string | null;
   hint: string | null;
@@ -22,6 +22,8 @@ export default function HisScreen({
   custom: Item[];
   push: PushState;
   pow: string | null;          // "POW!" — she is hitting back
+  love: "heart" | "kiss" | null;   // she said it helped / she said that was all of it
+  needCount: number;           // how many things she needs in total
   onEnablePush: () => void;
   onSend: (item: Item) => void;
   onAddFavourite: (emoji: string, name: string) => void;
@@ -35,6 +37,20 @@ export default function HisScreen({
     <main className={`his-ground relative min-h-dvh px-4 py-5 flex flex-col gap-4
                       ${buzzing ? "shake" : ""}`}>
       <div className="w-full max-w-md mx-auto flex flex-col gap-4">
+      {/* she said yes — he should see it, not just feel it */}
+      {love && (
+        <div aria-hidden className="pointer-events-none fixed inset-0 z-[72] overflow-hidden">
+          {Array.from({ length: love === "kiss" ? 14 : 6 }, (_, i) => (
+            <span key={i} className="love-float"
+                  style={{ left: `${6 + (i * 89) % 88}%`,
+                           animationDelay: `${(i % 7) * 0.13}s`,
+                           fontSize: love === "kiss" ? "30px" : "26px" }}>
+              {love === "kiss" ? (i % 2 ? "💋" : "😘") : "♡"}
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* she is hitting back, and he should see it land */}
       {pow && (
         <>
@@ -78,12 +94,14 @@ export default function HisScreen({
         <>
           <p className="text-center font-round font-bold text-sm text-inkSoft">
             {left > 0
-              ? <>You have <b className="text-ink">{left}</b> {left === 1 ? "try" : "tries"} left ♡</>
-              : "Out of tries — but she is still hurting"}
+              ? <>You can be wrong <b className="text-ink">{left}</b> more {left === 1 ? "time" : "times"} ♡</>
+              : "Out of guesses — but she is still hurting"}
           </p>
           {/* the one place colour is spent on his screen */}
           <div className="card border-l-[5px] border-l-lav">
-            <p className="font-round font-bold text-xs text-lav mb-2">✦ all Yuzu will tell you</p>
+            <p className="font-round font-bold text-xs text-lav mb-2">
+              ✦ she needs {needCount} {needCount === 1 ? "thing" : "things"} — all Yuzu will tell you
+            </p>
             <p className="italic text-lg leading-snug">&ldquo;{hint}&rdquo;</p>
             <p className="font-round font-bold text-xs text-inkFaint mt-3">
               pick something and send it

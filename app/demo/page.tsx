@@ -44,7 +44,7 @@ export default function Demo() {
 
   return (
     <main className="min-h-dvh px-4 py-6 max-w-md mx-auto flex flex-col gap-5 justify-center">
-      <RoomScene score={stage === "idle" ? 80 : 88} gifts={[]} />
+      <RoomScene score={stage === "idle" ? 80 : 88} gifts={[]} fill />
 
       {stage === "idle" && (
         <>

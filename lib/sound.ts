@@ -1,30 +1,20 @@
 "use client";
 
 /**
- * Yuzu's voice.
+ * Yuzu makes exactly one noise: her hitting back.
  *
- * Two reasons this exists:
- *  1. iPhone has no vibration motor, so a low tone through the speaker is the
- *     only thing a user can actually feel.
- *  2. A buzz is invisible on camera. For the demo video, sound is how the room
- *     hears the difference between her cramp and his hot water bottle.
+ * Everything else — her cramp, his hot water bottle — is felt, not heard.
+ * A rattling tone out of a phone in a quiet room reads as a malfunction.
  *
- * Off by default — nobody wants a period app making noise unasked. The toggle
- * is a user gesture, which is also what browsers require before audio can start.
+ * The punch is built rather than sampled: a Bollywood "dhishoom" is three
+ * things stacked — a whoosh of air as the arm travels, a sharp crack as it
+ * lands, and a low boom under it that you feel more than hear. Synthesising it
+ * means no audio file to load, nothing to go wrong on a slow connection, and
+ * nobody's copyright to borrow.
  */
-
-/**
- * Sound is simply on.
- *
- * There is no toggle: a control that says "sound off" on a screen that is
- * meant to hold four things is clutter, and the sound is not decoration here —
- * on a phone that cannot vibrate it is the only thing he can actually feel.
- * Browsers still will not start audio until the first tap, which every screen
- * in this app requires anyway.
- */
-export const soundOn = () => true;
 
 let ctx: AudioContext | null = null;
+
 function ensureCtx(): AudioContext | null {
   if (typeof window === "undefined") return null;
   try {
@@ -37,154 +27,99 @@ function ensureCtx(): AudioContext | null {
   } catch { return null; }
 }
 
-/**
- * A voice is a stack of partials. The trick to something being *annoying* is
- * dissonance and beating — two oscillators a few Hz apart fight each other and
- * produce a wobble the ear cannot tune out. That is what a cheap alarm clock does.
- *
- * pain/strike are built to be irritating on purpose. comfort deliberately is not,
- * because the whole product is the contrast between the two.
- */
-type Partial = { wave: OscillatorType; hz: number; gain: number };
+/** Filtered white noise — the air, and the crack. */
+function noise(c: AudioContext, at: number, dur: number, gain: number,
+               type: BiquadFilterType, hz: number, q = 1, sweepTo?: number) {
+  const frames = Math.max(1, Math.floor(c.sampleRate * dur));
+  const buf = c.createBuffer(1, frames, c.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < frames; i++) data[i] = Math.random() * 2 - 1;
 
-/**
- * A voice is a stack of partials plus an amplitude wobble.
- *
- * pain/strike are "rattle": a low motor tone with a hard rattle riding on top,
- * built to sound like a real phone buzzing against a hard table. Chosen over a
- * cleaner alarm tone because the demo video shows a phone on a table — the
- * sound and the picture should agree.
- *
- * The wobble is the important bit. Two oscillators a few Hz apart, plus a fast
- * amplitude flutter, produce a sound the ear cannot settle into. That is what
- * makes it nag instead of drone.
- *
- * comfort is the deliberate opposite: one warm sine, no rattle, no wobble.
- * The contrast between the two is the product.
- */
-type Voice = { partials: Partial[]; wobbleHz: number };
+  const src = c.createBufferSource();
+  src.buffer = buf;
 
-/**
- * Each way she hits back sounds like the thing it is — a fist is not a mallet.
- * These are keyed by the word on the button.
- */
-export const HIT_VOICES: Record<string, Voice> = {
-  // fist: low, blunt, almost no rattle
-  "POW!":   { partials: [{ wave: "sine", hz: 62, gain: 0.5 },
-                         { wave: "square", hz: 96, gain: 0.22 }], wobbleHz: 6 },
-  // mallet: a deep bonk with a ring on top
-  "BONK!":  { partials: [{ wave: "triangle", hz: 44, gain: 0.5 },
-                         { wave: "sine", hz: 330, gain: 0.16 },
-                         { wave: "sine", hz: 660, gain: 0.07 }], wobbleHz: 3 },
-  // glove: a hard flat slap
-  "SMACK!": { partials: [{ wave: "sawtooth", hz: 150, gain: 0.34 },
-                         { wave: "square", hz: 420, gain: 0.2 },
-                         { wave: "sawtooth", hz: 900, gain: 0.1 }], wobbleHz: 20 },
-  // lightning: thin, fast, electric
-  "ZAP!":   { partials: [{ wave: "square", hz: 1240, gain: 0.14 },
-                         { wave: "square", hz: 1310, gain: 0.12 },
-                         { wave: "sawtooth", hz: 210, gain: 0.22 }], wobbleHz: 42 },
-};
+  const filter = c.createBiquadFilter();
+  filter.type = type;
+  filter.frequency.setValueAtTime(hz, at);
+  if (sweepTo) filter.frequency.exponentialRampToValueAtTime(sweepTo, at + dur);
+  filter.Q.value = q;
 
-const VOICES: Record<"pain" | "comfort" | "strike", Voice> = {
-  pain: {
-    partials: [
-      { wave: "sawtooth", hz: 58,  gain: 0.30 },   // the motor
-      { wave: "square",   hz: 174, gain: 0.20 },   // casing rattle
-      { wave: "triangle", hz: 232, gain: 0.12 },   // the buzz against the table
-    ],
-    wobbleHz: 27,
-  },
-  // her turn — same instrument, wound tighter and higher
-  strike: {
-    partials: [
-      { wave: "sawtooth", hz: 74,  gain: 0.34 },
-      { wave: "square",   hz: 210, gain: 0.22 },
-      { wave: "triangle", hz: 300, gain: 0.13 },
-    ],
-    wobbleHz: 33,
-  },
-  comfort: {
-    partials: [
-      { wave: "sine", hz: 44, gain: 0.26 },
-      { wave: "sine", hz: 88, gain: 0.07 },
-    ],
-    wobbleHz: 0,
-  },
-};
+  const g = c.createGain();
+  g.gain.setValueAtTime(0, at);
+  g.gain.linearRampToValueAtTime(gain, at + Math.min(0.012, dur * 0.2));
+  g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
 
-/**
- * Play an on/off millisecond pattern as a tone. Mirrors navigator.vibrate exactly.
- * `hit` picks one of the punch voices — otherwise `kind` chooses.
- */
-export function playPattern(pattern: number[], kind: "pain" | "comfort" | "strike", hit?: string) {
-  if (!soundOn()) return;
-  const c = ensureCtx();
-  if (!c) return;
-  const voice = (hit && HIT_VOICES[hit]) || VOICES[kind];
-
-  let at = c.currentTime + 0.01;
-  for (let i = 0; i < pattern.length; i += 2) {
-    const on = pattern[i] / 1000;
-    const off = (pattern[i + 1] ?? 0) / 1000;
-    if (on <= 0) { at += off; continue; }
-
-    const bus = c.createGain();
-    bus.gain.setValueAtTime(0, at);
-    bus.gain.linearRampToValueAtTime(1, at + 0.008);           // hard attack, no easing in
-    bus.gain.setValueAtTime(1, Math.max(at + 0.009, at + on - 0.02));
-    bus.gain.linearRampToValueAtTime(0, at + on);
-    bus.connect(c.destination);
-
-    // amplitude wobble — the thing that makes it nag rather than drone
-    if (voice.wobbleHz) {
-      const lfo = c.createOscillator();
-      const depth = c.createGain();
-      lfo.type = "square";
-      lfo.frequency.value = voice.wobbleHz;
-      depth.gain.value = 0.3;
-      lfo.connect(depth).connect(bus.gain);
-      lfo.start(at); lfo.stop(at + on + 0.02);
-    }
-
-    for (const p of voice.partials) {
-      const osc = c.createOscillator();
-      const g = c.createGain();
-      osc.type = p.wave;
-      osc.frequency.value = p.hz;
-      g.gain.value = p.gain;
-      osc.connect(g).connect(bus);
-      osc.start(at);
-      osc.stop(at + on + 0.02);
-    }
-
-    at += on + off;
-  }
+  src.connect(filter).connect(g).connect(c.destination);
+  src.start(at);
+  src.stop(at + dur + 0.02);
 }
 
-/** Little moments that aren't buzzes. */
-export function cue(name: "arrive" | "win" | "wrong") {
-  if (!soundOn()) return;
+/** A pitch-dropping sine — the body of the impact. */
+function boom(c: AudioContext, at: number, from: number, to: number, dur: number, gain: number) {
+  const osc = c.createOscillator();
+  const g = c.createGain();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(from, at);
+  osc.frequency.exponentialRampToValueAtTime(to, at + dur);
+  g.gain.setValueAtTime(0, at);
+  g.gain.linearRampToValueAtTime(gain, at + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+  osc.connect(g).connect(c.destination);
+  osc.start(at);
+  osc.stop(at + dur + 0.02);
+}
+
+/** One "dhish" — whoosh in, crack, boom. */
+function dhish(c: AudioContext, at: number, pitch = 1, heft = 1) {
+  noise(c, at, 0.10, 0.22 * heft, "bandpass", 900 * pitch, 1.2, 2600 * pitch);  // the arm
+  noise(c, at + 0.085, 0.09, 0.5 * heft, "highpass", 1700 * pitch, 0.7);        // the crack
+  boom(c, at + 0.085, 150 * pitch, 42, 0.30, 0.65 * heft);                      // the weight
+}
+
+/**
+ * dhishoom. Two hits, the second heavier — that is the rhythm of the word.
+ * Each button varies pitch and weight so a fist is not a mallet.
+ */
+const HITS: Record<string, { pitch: number; heft: number; gap: number }> = {
+  "POW!":   { pitch: 0.85, heft: 1.00, gap: 0.16 },   // fist: blunt, low
+  "BONK!":  { pitch: 0.55, heft: 1.15, gap: 0.20 },   // mallet: deepest, slowest
+  "SMACK!": { pitch: 1.35, heft: 0.80, gap: 0.12 },   // glove: high, fast, flat
+  "ZAP!":   { pitch: 1.80, heft: 0.65, gap: 0.08 },   // lightning: thin, snappy
+};
+
+export function playHit(word?: string) {
+  const c = ensureCtx();
+  if (!c) return;
+  const { pitch, heft, gap } = HITS[word ?? "POW!"] ?? HITS["POW!"];
+  const at = c.currentTime + 0.01;
+  dhish(c, at, pitch, heft * 0.85);            // dhish…
+  dhish(c, at + gap, pitch * 0.92, heft);      // …oom
+}
+
+/** Little moments that aren't punches. */
+export function cue(name: "arrive" | "win" | "wrong" | "heart" | "kiss") {
   const c = ensureCtx();
   if (!c) return;
 
-  // [frequency, startOffset, length] — simple, readable melodies
   const NOTES: Record<typeof name, [number, number, number][]> = {
-    arrive: [[784, 0, 0.13], [1046, 0.1, 0.22]],                    // two-note lift: something landed
-    win:    [[523, 0, 0.16], [659, 0.14, 0.16], [784, 0.28, 0.42]], // C-E-G, it's over
-    wrong:  [[220, 0, 0.1], [175, 0.09, 0.2]],                      // two notes down: not that
+    arrive: [[784, 0, 0.13], [1046, 0.10, 0.22]],                       // something landed
+    win:    [[523, 0, 0.16], [659, 0.14, 0.16], [784, 0.28, 0.42]],     // it's over
+    wrong:  [[220, 0, 0.10], [175, 0.09, 0.20]],                        // not that
+    heart:  [[880, 0, 0.10], [1174, 0.08, 0.26]],                       // she says it helped
+    kiss:   [[1046, 0, 0.09], [1318, 0.07, 0.09], [1568, 0.14, 0.09],
+             [2093, 0.21, 0.34]],                                       // all of it, done
   };
 
   for (const [hz, delay, len] of NOTES[name]) {
     const at = c.currentTime + 0.01 + delay;
     const osc = c.createOscillator();
-    const gain = c.createGain();
+    const g = c.createGain();
     osc.type = "triangle";
     osc.frequency.value = hz;
-    gain.gain.setValueAtTime(0, at);
-    gain.gain.linearRampToValueAtTime(name === "wrong" ? 0.18 : 0.14, at + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.0001, at + len);
-    osc.connect(gain).connect(c.destination);
+    g.gain.setValueAtTime(0, at);
+    g.gain.linearRampToValueAtTime(name === "wrong" ? 0.18 : 0.13, at + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + len);
+    osc.connect(g).connect(c.destination);
     osc.start(at);
     osc.stop(at + len + 0.02);
   }

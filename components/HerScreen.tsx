@@ -11,7 +11,7 @@ import type { Presence } from "@/lib/presence";
 const LEVELS = ["","a niggle","noticeable","annoying","bad","properly bad",
                 "hard to sit","curled up","rough","crying","can't move"];
 
-export type Gift = { emoji: string; name: string; tag: string };
+export type Gift = { id?: string; emoji: string; name: string; tag: string };
 
 /** He failed. Her turn — each one fires his phone. */
 export const HITS = [
@@ -45,7 +45,7 @@ export default function HerScreen({
   const sent = needs.length > 0;
 
   return (
-    <main className="min-h-dvh px-4 py-5 max-w-md mx-auto flex flex-col gap-4">
+    <main className="min-h-dvh px-4 py-5 max-w-md mx-auto flex flex-col gap-4 justify-center">
       {partnerName && !sent && (
         <p className="text-center text-sm text-inkSoft text-balance">
           <b className="text-ink">{partnerName}</b> joined to feel your pain
@@ -53,7 +53,7 @@ export default function HerScreen({
         </p>
       )}
 
-      <RoomScene score={score} gifts={gifts} angry={failed} />
+      <RoomScene score={score} gifts={gifts} angry={failed} fill />
 
       {/* He can put the phone down. He just can't do it quietly. */}
       {sent && partnerAt !== "here" && (
@@ -120,7 +120,7 @@ export default function HerScreen({
             onChange={(e) => setMsg(e.target.value)}
             rows={3}
             placeholder="how does it feel right now?"
-            className="w-full bg-surface border-2 border-line rounded-blob p-4 text-base
+            className="w-full bg-surface border-2 border-line rounded-blob p-4 text-[17px]
                        placeholder:text-inkFaint resize-none"
           />
           <div className="flex items-center gap-3">
