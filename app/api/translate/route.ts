@@ -8,13 +8,15 @@ export const runtime = "nodejs";
 /**
  * Her words in → a buzz pattern, every need she mentioned, and his hints out.
  *
- * Three providers, tried in order, and the last one cannot fail:
+ * Gemini, with the built-in rules behind it. The rules cannot fail: no key and
+ * no network needed, so the demo never dies on stage.
  *
- *   1. BullsAI, the primary
- *   2. Gemini, if BullsAI is down or unset
- *   3. built-in rules, if both are, so the demo never dies on stage
+ * (There was a second provider on a university gateway for a while. It stopped
+ * being reachable off campus, and a provider you cannot reach from the machine
+ * you are demoing on is worse than none at all: every message sat through its
+ * timeout before the working one got a turn.)
  *
- * None of it runs in the browser: the keys stay server-side, and her message
+ * None of it runs in the browser: the key stays server-side, and her message
  * never reaches the phone of the person trying to guess it.
  */
 
@@ -44,66 +46,6 @@ const RESPONSE_SCHEMA = {
 };
 
 type Attempt = { ok: true; value: Translation } | { ok: false; why: string };
-
-/** Set when the BullsAI gateway refuses to connect, so we stop waiting on it. */
-const BULLSAI_COOLDOWN = 3 * 60_000;
-let bullsaiDownUntil = 0;
-
-/**
- * BullsAI, OpenAI chat-completions shape.
- *
- * ALT_AI_MODEL takes a comma-separated list, tried in order, same as Gemini.
- *
- * Kept on a SHORT leash. This gateway lives on a university network and has
- * been seen refusing connections outright, and when it does, every model in the
- * list burns the full timeout before Gemini gets a turn. She is staring at
- * "Reading her words..." the whole time. Better to give up quickly and let the
- * provider behind it answer.
- */
-async function tryBullsAI(prompt: string, level: number): Promise<Attempt> {
-  const base = process.env.ALT_AI_BASE_URL;
-  const key  = process.env.ALT_AI_API_KEY;
-  const models = (process.env.ALT_AI_MODEL ?? "").split(",").map(m => m.trim()).filter(Boolean);
-  if (!base || !key || !models.length) return { ok: false, why: "bullsai not configured" };
-
-  // If the gateway just refused to connect, do not sit through the timeout
-  // again on every message for the next few minutes.
-  if (Date.now() < bullsaiDownUntil) return { ok: false, why: "bullsai unreachable, skipping" };
-
-  let why = "no bullsai models tried";
-  for (const model of models) {
-    try {
-      const res = await fetch(`${base.replace(/\/$/, "")}/chat/completions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-        body: JSON.stringify({
-          model,
-          temperature: 0.4,
-          response_format: { type: "json_object" },
-          messages: [{ role: "user", content: prompt }],
-        }),
-        signal: AbortSignal.timeout(6_000),
-      });
-      if (!res.ok) { why = `${model} → ${res.status}`; continue; }
-
-      const data = await res.json();
-      const text = data?.choices?.[0]?.message?.content;
-      if (!text) { why = `${model} → empty`; continue; }
-
-      return { ok: true, value: normalise(JSON.parse(text), level) };
-    } catch (err) {
-      const msg = (err as Error).message;
-      why = `${model} → ${msg}`;
-      // A refused connection or a timeout is the gateway itself, not the model.
-      // Trying the next one just burns another timeout while she waits.
-      if (/fetch failed|timed? ?out|abort|ENOTFOUND|ECONN/i.test(msg)) {
-        bullsaiDownUntil = Date.now() + BULLSAI_COOLDOWN;
-        return { ok: false, why: `${why} (gateway down, backing off)` };
-      }
-    }
-  }
-  return { ok: false, why };
-}
 
 /**
  * Gemini, a chain, because Google retires versions (2.0-flash is already a 404)
@@ -165,21 +107,14 @@ export async function POST(req: Request) {
   const cached = cacheGet(ck);
   if (cached) return NextResponse.json(cached);
 
-  const prompt = buildPrompt(message, level);
-  const reasons: string[] = [];
-
-  for (const [name, provider] of [["bullsai", tryBullsAI], ["gemini", tryGemini]] as const) {
-    const attempt = await provider(prompt, level);
-    if (attempt.ok) {
-      // say who answered, so "which model is this?" is never a guess
-      console.log(`[translate] ${name} answered${reasons.length ? ` (after ${reasons.join(", ")})` : ""}`);
-      const value = { ...attempt.value, by: name };
-      cacheSet(ck, value);
-      return NextResponse.json(value);
-    }
-    reasons.push(attempt.why);
+  const attempt = await tryGemini(buildPrompt(message, level), level);
+  if (attempt.ok) {
+    const value = { ...attempt.value, by: "gemini" };
+    cacheSet(ck, value);
+    return NextResponse.json(value);
   }
 
-  console.warn("[translate] falling back to rules:", reasons.join(" | "));
+  // Gemini is out. The rules take over and nobody watching can tell.
+  console.warn("[translate] falling back to rules:", attempt.why);
   return NextResponse.json(fallback(message, level));
 }
