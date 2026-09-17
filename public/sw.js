@@ -1,11 +1,22 @@
 /* Yuzu service worker.
- * Caches the shell so the app opens instantly and survives a dropped signal.
- * Anything live — auth, her message, his gifts — always goes to the network.  */
-const CACHE = "yuzu-v2";
-const SHELL = ["/", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png"];
+ *
+ * Hard lesson: this used to cache the HTML too. Every deploy renames the JS
+ * chunks, so a cached page would ask for chunks that no longer exist and render
+ * nothing at all — a white screen on the home-screen app, with a perfectly
+ * healthy server. Never cache navigations.
+ *
+ * What is cached: the icons and the manifest, which never change names.
+ * Everything else — pages, JS, the API, Supabase — always goes to the network.
+ */
+const CACHE = "yuzu-v3";
+const SAFE = ["/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(
+    caches.open(CACHE)
+      .then((c) => Promise.allSettled(SAFE.map((u) => c.add(u))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (e) => {
@@ -20,34 +31,30 @@ self.addEventListener("fetch", (e) => {
   const { request } = e;
   if (request.method !== "GET") return;
 
-  const url = new URL(request.url);
-  // never cache the API, Supabase, or anything cross-origin
-  if (url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
+  // Pages: never served from cache. A stale page is worse than no page.
+  if (request.mode === "navigate") return;
 
-  // network first, fall back to cache when the signal drops
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;      // Supabase, fonts, Gemini
+  if (url.pathname.startsWith("/_next/")) return;       // hashed build output
+  if (url.pathname.startsWith("/api/")) return;         // always live
+
+  // Only the handful of files whose names never change.
+  if (!SAFE.includes(url.pathname)) return;
+
   e.respondWith(
-    fetch(request)
-      .then((res) => {
+    caches.match(request).then((hit) =>
+      hit ?? fetch(request).then((res) => {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put(request, copy)).catch(() => {});
         return res;
       })
-      .catch(() => caches.match(request).then((hit) => hit ?? caches.match("/")))
+    )
   );
 });
 
-
 /* ---------------------------------------------------------------------------
  * PUSH — the only way to buzz a phone whose app is closed.
- *
- * A page that is hidden cannot vibrate; the browser forbids it. But a service
- * worker woken by a push CAN show a notification, and a notification carries
- * its own vibration pattern. So her cramp reaches him through the OS rather
- * than through the page.
- *
- * Android honours the custom pattern. iOS (16.4+, home-screen installs only)
- * shows the notification and buzzes with the system default — no custom
- * rhythm, but it still arrives.
  * ------------------------------------------------------------------------- */
 self.addEventListener("push", (event) => {
   let payload = {};
@@ -58,21 +65,18 @@ self.addEventListener("push", (event) => {
     body: payload.body || "Open Yuzu.",
     icon: "/icon-192.png",
     badge: "/icon-192.png",
-    tag: payload.tag || "yuzu-cramp",     // replaces, so buzzes don't stack up
-    renotify: true,                       // ...but still buzz for each new one
-    requireInteraction: true,             // stays until he deals with it
+    tag: payload.tag || "yuzu-cramp",
+    renotify: true,
+    requireInteraction: true,
     vibrate: payload.vibrate || [300, 120, 300, 120, 300],
     data: { url: payload.url || "/" },
   };
-
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const target = event.notification.data?.url || "/";
-
-  // focus the tab if it is already open, otherwise open one
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((tabs) => {
       for (const tab of tabs) {
