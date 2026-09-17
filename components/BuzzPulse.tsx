@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { BUZZ_EVENT } from "@/lib/haptics";
+import { unlockAudio } from "@/lib/sound";
 
 /**
  * What an iPhone gets instead of a vibration.
@@ -16,6 +17,14 @@ export default function BuzzPulse() {
   const timers = useRef<number[]>([]);
 
   useEffect(() => {
+    /* Wake the audio clock on his first touch, and again whenever he comes back
+       to the tab. Without this her punch lands on a sleeping context and makes
+       no sound at all. */
+    const wake = () => unlockAudio();
+    const onVisible = () => { if (!document.hidden) unlockAudio(); };
+    window.addEventListener("pointerdown", wake, { once: false, passive: true });
+    window.addEventListener("touchstart", wake, { once: false, passive: true });
+    document.addEventListener("visibilitychange", onVisible);
 
     const onBuzz = (e: Event) => {
       const { pattern, kind } = (e as CustomEvent<{ pattern: number[]; kind: "pain" | "comfort" }>).detail;
@@ -34,6 +43,9 @@ export default function BuzzPulse() {
     window.addEventListener(BUZZ_EVENT, onBuzz);
     return () => {
       window.removeEventListener(BUZZ_EVENT, onBuzz);
+      window.removeEventListener("pointerdown", wake);
+      window.removeEventListener("touchstart", wake);
+      document.removeEventListener("visibilitychange", onVisible);
       timers.current.forEach(clearTimeout);
     };
   }, []);

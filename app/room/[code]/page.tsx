@@ -44,6 +44,12 @@ export default function Room() {
   const meRef = useRef<"her" | "him" | null>(null);
   const judged = useRef<Set<string>>(new Set());   // gifts she has already answered
 
+  /* Kept fresh ABOVE every effect that reads them. React runs effects in the
+     order they are declared, so assigning these lower down meant the gift poll
+     saw a null role and the buzz loop saw the previous cycle's pattern. */
+  useEffect(() => { cycleRef.current = cycle; }, [cycle]);
+  useEffect(() => { meRef.current = me; }, [me]);
+
 
   /* ---------------- join the room ---------------- */
   useEffect(() => {
@@ -215,12 +221,6 @@ export default function Room() {
   }, []);
 
   /* ---------------- HIS phone buzzes on a loop until she says stop ---------------- */
-  /* Kept fresh before any effect below reads them: React runs effects in the
-     order they are declared, so assigning these later means the buzz loop sees
-     the previous cycle. */
-  useEffect(() => { cycleRef.current = cycle; }, [cycle]);
-  useEffect(() => { meRef.current = me; }, [me]);
-
   /**
    * His phone buzzes until she says every need is met.
    *

@@ -20,10 +20,11 @@ export const supabase = (): SupabaseClient => {
   client = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    // NB: @supabase/ssr accepts cookieOptions but ignores maxAge, so cookie
-    // lifetime is set where we actually write them, middleware and
-    // lib/supabase-server.ts.
-    { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } },
+    // No options on purpose. @supabase/ssr already forces persistSession,
+    // autoRefreshToken, detectSessionInUrl, PKCE and cookie storage, and passing
+    // our own auth block only invites someone to "helpfully" override the
+    // storage adapter later and break the login flow. Cookie lifetime is set
+    // where the cookies are actually written: middleware and supabase-server.
   );
   return client;
 };

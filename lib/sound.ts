@@ -27,6 +27,41 @@ function ensureCtx(): AudioContext | null {
   } catch { return null; }
 }
 
+/**
+ * Why the punch sometimes made no sound.
+ *
+ * A browser will not let a page make noise until the person has touched it, and
+ * it suspends the audio clock again every time the page goes to the background.
+ * Her punch lands on HIS phone, and at that moment he may not have touched
+ * anything for a while, so the context was asleep and the sound was scheduled
+ * into silence. It worked only if he happened to have tapped recently, which is
+ * exactly the "sometimes" he was seeing.
+ *
+ * So: wake it on his very first touch of the page, wake it again whenever he
+ * comes back to the tab, and if it is still asleep when a sound is asked for,
+ * wait for it to wake before scheduling.
+ */
+export function unlockAudio() {
+  const c = ensureCtx();
+  if (!c) return;
+  // a moment of silence, which is what actually unlocks iOS
+  try {
+    const buf = c.createBuffer(1, 1, c.sampleRate);
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    src.connect(c.destination);
+    src.start(0);
+  } catch { /* the resume above may be enough on its own */ }
+}
+
+/** Run `play` once the audio clock is actually running. */
+function whenAwake(play: (c: AudioContext) => void) {
+  const c = ensureCtx();
+  if (!c) return;
+  if (c.state === "running") { play(c); return; }
+  c.resume().then(() => play(c)).catch(() => { /* nothing more to try */ });
+}
+
 /** Filtered white noise, the air, and the crack. */
 function noise(c: AudioContext, at: number, dur: number, gain: number,
                type: BiquadFilterType, hz: number, q = 1, sweepTo?: number) {
@@ -98,9 +133,6 @@ export function playHit(word?: string) {
 
 /** Little moments that aren't punches. */
 export function cue(name: "arrive" | "win" | "wrong" | "heart" | "kiss") {
-  const c = ensureCtx();
-  if (!c) return;
-
   const NOTES: Record<typeof name, [number, number, number][]> = {
     arrive: [[784, 0, 0.13], [1046, 0.10, 0.22]],                       // something landed
     win:    [[523, 0, 0.16], [659, 0.14, 0.16], [784, 0.28, 0.42]],     // it's over
@@ -110,17 +142,19 @@ export function cue(name: "arrive" | "win" | "wrong" | "heart" | "kiss") {
              [2093, 0.21, 0.34]],                                       // all of it, done
   };
 
-  for (const [hz, delay, len] of NOTES[name]) {
-    const at = c.currentTime + 0.01 + delay;
-    const osc = c.createOscillator();
-    const g = c.createGain();
-    osc.type = "triangle";
-    osc.frequency.value = hz;
-    g.gain.setValueAtTime(0, at);
-    g.gain.linearRampToValueAtTime(name === "wrong" ? 0.18 : 0.13, at + 0.015);
-    g.gain.exponentialRampToValueAtTime(0.0001, at + len);
-    osc.connect(g).connect(c.destination);
-    osc.start(at);
-    osc.stop(at + len + 0.02);
-  }
+  whenAwake((c) => {
+    for (const [hz, delay, len] of NOTES[name]) {
+      const at = c.currentTime + 0.01 + delay;
+      const osc = c.createOscillator();
+      const g = c.createGain();
+      osc.type = "triangle";
+      osc.frequency.value = hz;
+      g.gain.setValueAtTime(0, at);
+      g.gain.linearRampToValueAtTime(name === "wrong" ? 0.18 : 0.13, at + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + len);
+      osc.connect(g).connect(c.destination);
+      osc.start(at);
+      osc.stop(at + len + 0.02);
+    }
+  });
 }

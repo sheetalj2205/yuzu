@@ -45,18 +45,30 @@ const RESPONSE_SCHEMA = {
 
 type Attempt = { ok: true; value: Translation } | { ok: false; why: string };
 
+/** Set when the BullsAI gateway refuses to connect, so we stop waiting on it. */
+const BULLSAI_COOLDOWN = 3 * 60_000;
+let bullsaiDownUntil = 0;
+
 /**
  * BullsAI, OpenAI chat-completions shape.
  *
  * ALT_AI_MODEL takes a comma-separated list, tried in order, same as Gemini.
- * Put the one that writes best first and a fast one behind it: a gateway
- * hosting many models will have some of them busy at any given moment.
+ *
+ * Kept on a SHORT leash. This gateway lives on a university network and has
+ * been seen refusing connections outright, and when it does, every model in the
+ * list burns the full timeout before Gemini gets a turn. She is staring at
+ * "Reading her words..." the whole time. Better to give up quickly and let the
+ * provider behind it answer.
  */
 async function tryBullsAI(prompt: string, level: number): Promise<Attempt> {
   const base = process.env.ALT_AI_BASE_URL;
   const key  = process.env.ALT_AI_API_KEY;
   const models = (process.env.ALT_AI_MODEL ?? "").split(",").map(m => m.trim()).filter(Boolean);
   if (!base || !key || !models.length) return { ok: false, why: "bullsai not configured" };
+
+  // If the gateway just refused to connect, do not sit through the timeout
+  // again on every message for the next few minutes.
+  if (Date.now() < bullsaiDownUntil) return { ok: false, why: "bullsai unreachable, skipping" };
 
   let why = "no bullsai models tried";
   for (const model of models) {
@@ -70,7 +82,7 @@ async function tryBullsAI(prompt: string, level: number): Promise<Attempt> {
           response_format: { type: "json_object" },
           messages: [{ role: "user", content: prompt }],
         }),
-        signal: AbortSignal.timeout(25_000),
+        signal: AbortSignal.timeout(6_000),
       });
       if (!res.ok) { why = `${model} → ${res.status}`; continue; }
 
@@ -80,7 +92,14 @@ async function tryBullsAI(prompt: string, level: number): Promise<Attempt> {
 
       return { ok: true, value: normalise(JSON.parse(text), level) };
     } catch (err) {
-      why = `${model} → ${(err as Error).message}`;
+      const msg = (err as Error).message;
+      why = `${model} → ${msg}`;
+      // A refused connection or a timeout is the gateway itself, not the model.
+      // Trying the next one just burns another timeout while she waits.
+      if (/fetch failed|timed? ?out|abort|ENOTFOUND|ECONN/i.test(msg)) {
+        bullsaiDownUntil = Date.now() + BULLSAI_COOLDOWN;
+        return { ok: false, why: `${why} (gateway down, backing off)` };
+      }
     }
   }
   return { ok: false, why };
@@ -149,11 +168,14 @@ export async function POST(req: Request) {
   const prompt = buildPrompt(message, level);
   const reasons: string[] = [];
 
-  for (const provider of [tryBullsAI, tryGemini]) {
+  for (const [name, provider] of [["bullsai", tryBullsAI], ["gemini", tryGemini]] as const) {
     const attempt = await provider(prompt, level);
     if (attempt.ok) {
-      cacheSet(ck, attempt.value);
-      return NextResponse.json(attempt.value);
+      // say who answered, so "which model is this?" is never a guess
+      console.log(`[translate] ${name} answered${reasons.length ? ` (after ${reasons.join(", ")})` : ""}`);
+      const value = { ...attempt.value, by: name };
+      cacheSet(ck, value);
+      return NextResponse.json(value);
     }
     reasons.push(attempt.why);
   }

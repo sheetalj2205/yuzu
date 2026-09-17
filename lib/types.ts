@@ -15,7 +15,8 @@ export type Pattern = {
 
 export type Translation = Pattern & {
   needs: Need[];
-  offline?: boolean;   // true when the fallback answered
+  offline?: boolean;   // true when the built-in rules answered
+  by?: string;         // which provider actually answered
 };
 
 export type Item = {
