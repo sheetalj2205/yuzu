@@ -17,7 +17,7 @@ export const ITEMS: Item[] = [
 /** Emoji he can pick when adding one of her favourites. */
 export const FAVE_EMOJI = ["🍫","🧸","🍜","🌹","🍦","📖","🎬","🧁","🍿","🌻","💐","🛁"];
 
-/** Cuddle Code — 6 friendly characters, no confusing 0/O/1/I. */
+/** Cuddle Code, 6 friendly characters, no confusing 0/O/1/I. */
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 export function makeCuddleCode(): string {
   let out = "";

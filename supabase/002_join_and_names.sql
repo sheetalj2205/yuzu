@@ -1,10 +1,10 @@
--- Yuzu fix 002 — let him actually join, and let partners see each other's names.
+-- Yuzu fix 002, let him actually join, and let partners see each other's names.
 -- Paste into Supabase → SQL Editor → Run.
 
 -- ---------------------------------------------------------------------------
 -- 1. JOINING
 --
--- "my rooms" only lets you see a room you are already in — but when he types a
+-- "my rooms" only lets you see a room you are already in, but when he types a
 -- Cuddle Code he is not in it yet, so the lookup found nothing and the app said
 -- "No room with that Cuddle Code".
 --

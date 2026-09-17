@@ -2,7 +2,7 @@ import type { Need, Tag, Translation } from "./types";
 import { MAX_TRIES, TAGS } from "./types";
 
 /* ------------------------------------------------------------------ *
- * THE PROMPT. This is the whole AI product — read it before changing. *
+ * THE PROMPT. This is the whole AI product, read it before changing. *
  * Each need carries its OWN hints, so he is always nudged toward      *
  * something she still hasn't ticked off.                              *
  * ------------------------------------------------------------------ */
@@ -17,7 +17,7 @@ Her partner will NOT be shown her words. You are the app speaking TO HIM.
 IMPORTANT: her message may contain SEVERAL separate needs. Pull out every distinct one (1 to 3).
 She is not settled until every one of them is met.
 
-For EACH need, write FIVE short hints addressed to him ("she", "her") — one for each of his
+For EACH need, write FIVE short hints addressed to him ("she", "her"), one for each of his
 five tries, getting clearer every single time. Hint 1 is almost nothing; hint 5 all but names
 what she wants without naming the object itself. Never quote or closely paraphrase her
 sentence. The hints for a need must be about THAT need only.
@@ -34,7 +34,7 @@ Constant heavy ache -> grind. Pulsing -> throb.
 Tags: cold or cramping -> heat. Very sharp pain -> meds. Exhausted, overwhelmed, can't
 sleep -> rest. Lonely, low, missing him -> company. Wants to be held or covered -> warmth.
 
-Example — "I am freezing, my back is killing me and I miss you" has THREE needs, and the
+Example, "I am freezing, my back is killing me and I miss you" has THREE needs, and the
 heat one would read:
 {"tag":"heat","label":"something warm","hints":[
   "Something is cold.",
@@ -50,7 +50,7 @@ const clamp = (n: unknown, lo: number, hi: number, fb: number) => {
   return Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : fb;
 };
 
-/** Stock hints per tag — fills in when the model gives a need no hints of its own. */
+/** Stock hints per tag, fills in when the model gives a need no hints of its own. */
 export const HINT_BANK: Record<Tag, string[]> = {
   heat:    ["Something is cold.", "Cold from the inside out.", "A drink will not reach it.",
             "She needs heat held against her.", "Steady warmth, pressed low on her back."],
@@ -61,7 +61,7 @@ export const HINT_BANK: Record<Tag, string[]> = {
   company: ["She is on her own.", "The room is too quiet.", "Being alone is making it worse.",
             "A parcel will not fix this one.", "She wants your voice, right now."],
   warmth:  ["She has curled up small.", "She wants to be covered.", "Something with weight to it.",
-            "Not a drink — something over her.", "Wrap her up and leave it there."],
+            "Not a drink, something over her.", "Wrap her up and leave it there."],
 };
 
 export function normaliseNeeds(raw: unknown): Need[] {
@@ -130,7 +130,7 @@ export const score = (needs: Need[], intensity: number) =>
 
 /**
  * She said it helped. Tick the need this gift was actually for.
- * If it matches nothing still open, she is still the authority — credit the
+ * If it matches nothing still open, she is still the authority, credit the
  * next open need, so a thoughtful gift is never thrown away.
  */
 export function tickOff(needs: Need[], tag: string): Need[] {
@@ -145,7 +145,7 @@ export function tickOff(needs: Need[], tag: string): Need[] {
  * further on every single try.
  *
  * Each need carries five hints but he only gets three goes, so they are spread
- * across the whole ladder — vague, middle, nearly telling him — rather than
+ * across the whole ladder, vague, middle, nearly telling him, rather than
  * stopping a third of the way up. Past his last try he keeps the clearest one.
  */
 export function hintFor(needs: Need[], tries: number): string | null {

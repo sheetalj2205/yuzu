@@ -6,7 +6,7 @@ import { playHit } from "./sound";
  * Haptics, with an honest iPhone story.
  *
  * Android Chrome has navigator.vibrate and gets the real thing.
- * iOS Safari has never shipped the Vibration API — there is no flag, no
+ * iOS Safari has never shipped the Vibration API, there is no flag, no
  * permission, no polyfill. So on iPhone we render the buzz instead of feeling
  * it: the screen pulses to the same rhythm it would have buzzed with.
  * Not as good. Far better than nothing.
@@ -28,7 +28,7 @@ function announce(pattern: number[], kind: "pain" | "comfort") {
 /* ---------------- the buzzes ---------------- */
 
 /**
- * A buzz is a buzz — no soundtrack.
+ * A buzz is a buzz, no soundtrack.
  *
  * The cramp and the comfort are felt, not heard: a rattling tone playing out of
  * a phone in a quiet room reads as a bug, not as pain. The only thing that makes
@@ -50,12 +50,12 @@ export function buzzPain(p: Pattern) {
   fire(pattern, "pain");
 }
 
-/** HIS comfort on HER phone: slow, long, even — like breathing. */
+/** HIS comfort on HER phone: slow, long, even, like breathing. */
 export function buzzComfort() {
   fire([180, 520, 220, 520, 260], "comfort");
 }
 
-/** She hits back — the one thing in Yuzu you hear as well as feel. */
+/** She hits back, the one thing in Yuzu you hear as well as feel. */
 export function buzzStrike(pattern: number[], word?: string) {
   if (canVibrate()) { try { navigator.vibrate(pattern); } catch {} }
   announce(pattern, "pain");
@@ -68,7 +68,7 @@ export function stopBuzz() {
 
 /**
  * His phone does not stop because he tried. It stops when SHE says it stops.
- * Capped at 10 minutes so a real user doesn't rage-quit — a deliberate choice,
+ * Capped at 10 minutes so a real user doesn't rage-quit, a deliberate choice,
  * worth saying out loud in the pitch.
  */
 export function startBuzzLoop(p: Pattern, stillUnmet: () => boolean) {

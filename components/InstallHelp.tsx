@@ -6,7 +6,7 @@ type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{
 /**
  * A permanent way in.
  *
- * The timed card is easy to miss — it only shows for a minute, and on iPhone
+ * The timed card is easy to miss, it only shows for a minute, and on iPhone
  * there is no install button at all, so if you miss it there is nothing left to
  * find. This link always sits on the room screen, and never appears once the
  * app is actually installed.
@@ -56,14 +56,14 @@ export default function InstallHelp() {
             {ios ? (
               <>
                 <ol className="text-sm leading-relaxed list-decimal pl-5 space-y-1">
-                  <li>Make sure you are in <b>Safari</b> — no other iPhone browser can do this</li>
-                  <li>Tap the <b>Share</b> button — the square with an arrow, in the bar at the
+                  <li>Make sure you are in <b>Safari</b>. No other iPhone browser can do this</li>
+                  <li>Tap the <b>Share</b> button, the square with an arrow, in the bar at the
                       bottom (or top right on iPad)</li>
                   <li>Scroll down the list and tap <b>Add to Home Screen</b></li>
                   <li>Tap <b>Add</b>, then open Yuzu from your home screen</li>
                 </ol>
                 <p className="text-inkSoft text-xs mt-3">
-                  You will need to sign in once more inside the installed app — iPhone keeps
+                  You will need to sign in once more inside the installed app, iPhone keeps
                   it separate from Safari. After that it stays signed in.
                 </p>
                 <p className="text-inkSoft text-xs mt-2">
@@ -72,7 +72,7 @@ export default function InstallHelp() {
               </>
             ) : (
               <ol className="text-sm leading-relaxed list-decimal pl-5 space-y-1">
-                <li>Open the browser menu — the ⋮ in the corner</li>
+                <li>Open the browser menu, the ⋮ in the corner</li>
                 <li>Tap <b>Install app</b> or <b>Add to Home screen</b></li>
               </ol>
             )}

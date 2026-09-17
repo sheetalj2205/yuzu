@@ -9,7 +9,7 @@ export const runtime = "nodejs";   // web-push needs node crypto
  * Send a buzz to the other person in a room, even with the app closed.
  *
  * Reading someone else's push subscription is deliberately impossible under RLS,
- * so this route uses the service role — and therefore checks for itself that the
+ * so this route uses the service role, and therefore checks for itself that the
  * caller really is in the room they are trying to buzz.
  */
 export async function POST(req: Request) {
@@ -65,7 +65,7 @@ export async function POST(req: Request) {
         { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload);
       sent++;
     } catch (err) {
-      // 404/410 mean the browser threw the subscription away — stop storing it
+      // 404/410 mean the browser threw the subscription away, stop storing it
       const code = (err as { statusCode?: number }).statusCode;
       if (code === 404 || code === 410) dead.push(s.endpoint);
     }

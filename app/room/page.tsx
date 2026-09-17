@@ -30,7 +30,7 @@ export default function RoomGate() {
         await sb.from("rooms").insert({ code: fresh, her_id: user.id });
         setCode(fresh);
       } else {
-        // he is already in a room — do not make him type the code again
+        // he is already in a room, do not make him type the code again
         const { data: his } = await sb.from("rooms").select("code").eq("him_id", user.id)
           .order("created_at", { ascending: false }).limit(1).maybeSingle();
         if (his?.code) return router.replace(`/room/${his.code}`);
@@ -41,7 +41,7 @@ export default function RoomGate() {
   const join = async () => {
     setErr("");
     const sb = supabase();
-    // goes through join_room() — he cannot see a room until he is in it
+    // goes through join_room(), he cannot see a room until he is in it
     const { data, error } = await sb.rpc("join_room", { p_code: typed.trim().toUpperCase() });
     if (error) return setErr(error.message);
     const room = Array.isArray(data) ? data[0] : data;

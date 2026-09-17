@@ -6,7 +6,7 @@ import type { Item } from "@/lib/types";
 import type { PushState } from "@/lib/push";
 
 /**
- * HIS PHONE. Rule: he sees a hint and a drawer. Never her words —
+ * HIS PHONE. Rule: he sees a hint and a drawer. Never her words -
  * not until he has burned all five tries.
  */
 export default function HisScreen({
@@ -21,7 +21,7 @@ export default function HisScreen({
   buzzing: boolean;
   custom: Item[];
   push: PushState;
-  pow: string | null;          // "POW!" — she is hitting back
+  pow: string | null;          // "POW!", she is hitting back
   love: "heart" | "kiss" | null;   // she said it helped / she said that was all of it
   needCount: number;           // how many things she needs in total
   onEnablePush: () => void;
@@ -37,7 +37,7 @@ export default function HisScreen({
     <main className={`his-ground relative min-h-dvh px-4 py-5 flex flex-col gap-4
                       ${buzzing ? "shake" : ""}`}>
       <div className="w-full max-w-md mx-auto flex flex-col gap-4">
-      {/* she said yes — he should see it, not just feel it */}
+      {/* she said yes, he should see it, not just feel it */}
       {love && (
         <div aria-hidden className="pointer-events-none fixed inset-0 z-[72] overflow-hidden">
           {Array.from({ length: love === "kiss" ? 14 : 6 }, (_, i) => (
@@ -95,12 +95,12 @@ export default function HisScreen({
           <p className="text-center font-round font-bold text-sm text-inkSoft">
             {left > 0
               ? <>You can be wrong <b className="text-ink">{left}</b> more {left === 1 ? "time" : "times"} ♡</>
-              : "Out of guesses — but she is still hurting"}
+              : "Out of guesses, and she is still hurting"}
           </p>
           {/* the one place colour is spent on his screen */}
           <div className="card border-l-[5px] border-l-lav">
             <p className="font-round font-bold text-xs text-lav mb-2">
-              ✦ she needs {needCount} {needCount === 1 ? "thing" : "things"} — all Yuzu will tell you
+              ✦ she needs {needCount} {needCount === 1 ? "thing" : "things"}. All Yuzu will tell you:
             </p>
             <p className="italic text-lg leading-snug">&ldquo;{hint}&rdquo;</p>
             <p className="font-round font-bold text-xs text-inkFaint mt-3">

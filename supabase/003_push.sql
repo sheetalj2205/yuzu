@@ -1,4 +1,4 @@
--- Yuzu fix 003 — Web Push, so his phone buzzes with the app closed.
+-- Yuzu fix 003, Web Push, so his phone buzzes with the app closed.
 -- Paste into Supabase → SQL Editor → Run.
 
 create table if not exists public.push_subscriptions (

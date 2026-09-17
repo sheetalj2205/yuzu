@@ -8,12 +8,12 @@ import type { Pattern } from "@/lib/types";
  * THE QR MOMENT.
  *
  * No login, no pairing. A whole room scans the code, taps once, and every phone
- * buzzes with the same cramp — then reads what she actually wrote.
+ * buzzes with the same cramp, then reads what she actually wrote.
  *
  * Why it is safe at scale: every phone sends the SAME message, so after the first
  * one it is all cache. Forty phones, one Gemini call.
  *
- * The tap matters technically too — browsers refuse to vibrate until the user has
+ * The tap matters technically too, browsers refuse to vibrate until the user has
  * touched the page.
  */
 const HER_WORDS = "A dull fist low in my back, slowly clenching, and I'm freezing";
@@ -34,7 +34,7 @@ export default function Demo() {
         body: JSON.stringify({ message: HER_WORDS, intensity: INTENSITY }),
       });
       if (res.ok) pattern = await res.json();
-    } catch { /* keep the default pattern — the room still feels it */ }
+    } catch { /* keep the default pattern, the room still feels it */ }
 
     setLabel(pattern.label);
     buzzPain(pattern);

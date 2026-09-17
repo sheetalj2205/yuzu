@@ -2,11 +2,11 @@
  *
  * Hard lesson: this used to cache the HTML too. Every deploy renames the JS
  * chunks, so a cached page would ask for chunks that no longer exist and render
- * nothing at all — a white screen on the home-screen app, with a perfectly
+ * nothing at all, a white screen on the home-screen app, with a perfectly
  * healthy server. Never cache navigations.
  *
  * What is cached: the icons and the manifest, which never change names.
- * Everything else — pages, JS, the API, Supabase — always goes to the network.
+ * Everything else, pages, JS, the API, Supabase, always goes to the network.
  */
 const CACHE = "yuzu-v3";
 const SAFE = ["/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"];
@@ -54,7 +54,7 @@ self.addEventListener("fetch", (e) => {
 });
 
 /* ---------------------------------------------------------------------------
- * PUSH — the only way to buzz a phone whose app is closed.
+ * PUSH, the only way to buzz a phone whose app is closed.
  * ------------------------------------------------------------------------- */
 self.addEventListener("push", (event) => {
   let payload = {};

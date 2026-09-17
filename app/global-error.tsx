@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * The last line of defence — this one replaces the whole document, so it cannot
+ * The last line of defence, this one replaces the whole document, so it cannot
  * use the app's layout, fonts or CSS. Everything here is inline on purpose.
  *
  * It also clears the service worker and its caches before retrying: a white

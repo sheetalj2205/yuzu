@@ -13,7 +13,7 @@ const LEVELS = ["","a niggle","noticeable","annoying","bad","properly bad",
 
 export type Gift = { id?: string; emoji: string; name: string; tag: string };
 
-/** He failed. Her turn — each one fires his phone. */
+/** He failed. Her turn, each one fires his phone. */
 export const HITS = [
   { emoji: "👊", word: "POW!",   pattern: [320, 70, 320] },
   { emoji: "🔨", word: "BONK!",  pattern: [500, 60, 220] },
@@ -109,7 +109,7 @@ export default function HerScreen({
           {hits > 0 && (
             <p className="font-round font-black text-xs text-pain mt-3">
               {hits < 5 ? `${hits} ${hits === 1 ? "hit" : "hits"}. He felt that.`
-                        : `${hits} hits. Okay — he has learnt his lesson ♡`}
+                        : `${hits} hits. Okay, he has learnt his lesson ♡`}
             </p>
           )}
           <button className="btn btn-ghost mt-3" onClick={onForgive}>

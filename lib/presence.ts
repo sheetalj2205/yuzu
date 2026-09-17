@@ -5,7 +5,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
  * Who is actually looking at the app right now.
  *
  * The browser will not let a page vibrate, play sound or run its timers while
- * it is hidden — that is deliberate, and there is no way around it short of Web
+ * it is hidden, that is deliberate, and there is no way around it short of Web
  * Push. So Yuzu does not pretend he is trapped. He can close the app any time.
  *
  * He just cannot do it quietly.
@@ -37,7 +37,7 @@ export function readPartner(
  * Returns a cleanup function.
  *
  * `visibilitychange` covers switching apps, locking the phone and tab switches.
- * `pagehide` covers closing it — more reliable than `beforeunload` on mobile.
+ * `pagehide` covers closing it, more reliable than `beforeunload` on mobile.
  */
 export function trackVisibility(channel: RealtimeChannel, meta: Omit<PresenceMeta, "state">) {
   const push = (state: PresenceMeta["state"]) => { void channel.track({ ...meta, state }); };

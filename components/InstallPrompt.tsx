@@ -6,7 +6,7 @@ type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{
 /** Offered on every visit, then it gets out of the way. */
 const SHOW_FOR_MS = 60_000;
 
-/** The iOS share glyph, drawn rather than borrowed — Apple's own symbol font
+/** The iOS share glyph, drawn rather than borrowed, Apple's own symbol font
  *  renders as an empty box anywhere outside Apple's apps. */
 function ShareIcon() {
   return (
@@ -40,7 +40,7 @@ export default function InstallPrompt() {
     const onPrompt = (e: Event) => { e.preventDefault(); setDeferred(e as InstallEvent); };
     window.addEventListener("beforeinstallprompt", onPrompt);
 
-    // iOS fires no install event. Only Safari can add to the home screen —
+    // iOS fires no install event. Only Safari can add to the home screen -
     // Chrome and Firefox on iOS cannot, so do not promise it there.
     const ua = navigator.userAgent;
     const isIos = /iphone|ipad|ipod/i.test(ua) ||
@@ -74,7 +74,7 @@ export default function InstallPrompt() {
     );
   }
 
-  // iOS: instructions, not a button. Tapping the card must NOT dismiss it —
+  // iOS: instructions, not a button. Tapping the card must NOT dismiss it -
   // the whole point is that it stays put while you use Safari's Share menu.
   if (iosHint) {
     return (

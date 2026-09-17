@@ -10,15 +10,15 @@ export const runtime = "nodejs";
  *
  * Three providers, tried in order, and the last one cannot fail:
  *
- *   1. BullsAI      — the primary
- *   2. Gemini       — if BullsAI is down or unset
- *   3. built-in rules — if both are, so the demo never dies on stage
+ *   1. BullsAI, the primary
+ *   2. Gemini, if BullsAI is down or unset
+ *   3. built-in rules, if both are, so the demo never dies on stage
  *
  * None of it runs in the browser: the keys stay server-side, and her message
  * never reaches the phone of the person trying to guess it.
  */
 
-/** Gemini returns JSON matching this shape — no "please reply with JSON" pleading. */
+/** Gemini returns JSON matching this shape, no "please reply with JSON" pleading. */
 const RESPONSE_SCHEMA = {
   type: "object",
   properties: {
@@ -46,7 +46,7 @@ const RESPONSE_SCHEMA = {
 type Attempt = { ok: true; value: Translation } | { ok: false; why: string };
 
 /**
- * BullsAI — OpenAI chat-completions shape.
+ * BullsAI, OpenAI chat-completions shape.
  *
  * ALT_AI_MODEL takes a comma-separated list, tried in order, same as Gemini.
  * Put the one that writes best first and a fast one behind it: a gateway
@@ -87,7 +87,7 @@ async function tryBullsAI(prompt: string, level: number): Promise<Attempt> {
 }
 
 /**
- * Gemini — a chain, because Google retires versions (2.0-flash is already a 404)
+ * Gemini, a chain, because Google retires versions (2.0-flash is already a 404)
  * and popular models return 503 "high demand" at random moments.
  * "-lite" models have no reasoning to switch off and reject thinkingConfig.
  */

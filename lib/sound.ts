@@ -3,11 +3,11 @@
 /**
  * Yuzu makes exactly one noise: her hitting back.
  *
- * Everything else — her cramp, his hot water bottle — is felt, not heard.
+ * Everything else, her cramp, his hot water bottle, is felt, not heard.
  * A rattling tone out of a phone in a quiet room reads as a malfunction.
  *
  * The punch is built rather than sampled: a Bollywood "dhishoom" is three
- * things stacked — a whoosh of air as the arm travels, a sharp crack as it
+ * things stacked, a whoosh of air as the arm travels, a sharp crack as it
  * lands, and a low boom under it that you feel more than hear. Synthesising it
  * means no audio file to load, nothing to go wrong on a slow connection, and
  * nobody's copyright to borrow.
@@ -27,7 +27,7 @@ function ensureCtx(): AudioContext | null {
   } catch { return null; }
 }
 
-/** Filtered white noise — the air, and the crack. */
+/** Filtered white noise, the air, and the crack. */
 function noise(c: AudioContext, at: number, dur: number, gain: number,
                type: BiquadFilterType, hz: number, q = 1, sweepTo?: number) {
   const frames = Math.max(1, Math.floor(c.sampleRate * dur));
@@ -54,7 +54,7 @@ function noise(c: AudioContext, at: number, dur: number, gain: number,
   src.stop(at + dur + 0.02);
 }
 
-/** A pitch-dropping sine — the body of the impact. */
+/** A pitch-dropping sine, the body of the impact. */
 function boom(c: AudioContext, at: number, from: number, to: number, dur: number, gain: number) {
   const osc = c.createOscillator();
   const g = c.createGain();
@@ -69,7 +69,7 @@ function boom(c: AudioContext, at: number, from: number, to: number, dur: number
   osc.stop(at + dur + 0.02);
 }
 
-/** One "dhish" — whoosh in, crack, boom. */
+/** One "dhish", whoosh in, crack, boom. */
 function dhish(c: AudioContext, at: number, pitch = 1, heft = 1) {
   noise(c, at, 0.10, 0.22 * heft, "bandpass", 900 * pitch, 1.2, 2600 * pitch);  // the arm
   noise(c, at + 0.085, 0.09, 0.5 * heft, "highpass", 1700 * pitch, 0.7);        // the crack
@@ -77,7 +77,7 @@ function dhish(c: AudioContext, at: number, pitch = 1, heft = 1) {
 }
 
 /**
- * dhishoom. Two hits, the second heavier — that is the rhythm of the word.
+ * dhishoom. Two hits, the second heavier, that is the rhythm of the word.
  * Each button varies pitch and weight so a fist is not a mallet.
  */
 const HITS: Record<string, { pitch: number; heft: number; gap: number }> = {

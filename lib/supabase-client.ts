@@ -21,14 +21,14 @@ export const supabase = (): SupabaseClient => {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     // NB: @supabase/ssr accepts cookieOptions but ignores maxAge, so cookie
-    // lifetime is set where we actually write them — middleware and
+    // lifetime is set where we actually write them, middleware and
     // lib/supabase-server.ts.
     { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } },
   );
   return client;
 };
 
-/** The only way out — nothing else signs anyone out. */
+/** The only way out, nothing else signs anyone out. */
 export async function signOut() {
   await supabase().auth.signOut();
   location.href = "/";

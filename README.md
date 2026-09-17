@@ -3,7 +3,7 @@
 **Pain travels one way. Comfort travels back.**
 
 She's in Pune. He's in Berlin. When her cramp starts, his phone starts buzzing
-and won't stop. He never sees what she wrote — only a hint. He has **5 tries**
+and won't stop. He never sees what she wrote, only a hint. He has **5 tries**
 to work out what she needs. Only she can make it stop. If he fails, she gets to
 hit back, and every punch fires his phone.
 
@@ -48,7 +48,7 @@ node -e "console.log(require('web-push').generateVAPIDKeys())"
 `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT=mailto:you@…`.
 
 You also need **`SUPABASE_SERVICE_ROLE_KEY`** (Settings → API). This one is
-server-only — it must NOT be prefixed `NEXT_PUBLIC_`. The send route uses it to
+server-only, it must NOT be prefixed `NEXT_PUBLIC_`. The send route uses it to
 read the *other* person's push subscription, which row-level security rightly
 forbids everyone else from doing.
 
@@ -96,9 +96,9 @@ Both phones on the same wifi → `http://<that-ip>:3000`
 | Install as an app | ✅ install button | ✅ Share → Add to Home Screen |
 | Everything else | ✅ | ✅ |
 | **Real vibration** | ✅ | ❌ Safari has never shipped the Vibration API |
-| Instead, iPhone gets | — | full-screen **pulse** on the same rhythm, plus an optional low **tone** through the speaker (🔇 toggle, top right) |
+| Instead, iPhone gets | - | full-screen **pulse** on the same rhythm, plus an optional low **tone** through the speaker (🔇 toggle, top right) |
 
-**Demo on Android.** The pulse is a good fallback, not a replacement — the whole
+**Demo on Android.** The pulse is a good fallback, not a replacement, the whole
 point of Yuzu is something you feel without looking at the screen.
 
 ---
@@ -126,16 +126,16 @@ Vercel gives you HTTPS, which the PWA install and the vibration API both require
 
 ---
 
-## The QR moment — `/demo`
+## The QR moment - `/demo`
 
-`https://YOUR-APP.vercel.app/demo` — **no login, no pairing.** Put the QR code on
+`https://YOUR-APP.vercel.app/demo` - **no login, no pairing.** Put the QR code on
 your slide. The whole room scans it, taps once, and every phone buzzes with the
 same cramp, then reads what she actually wrote.
 
 Safe at scale because every phone sends the *same* message, so after the first one
 it is all cache: **forty phones, one Gemini call.**
 
-The tap is required, not decorative — browsers refuse to vibrate until the user
+The tap is required, not decorative, browsers refuse to vibrate until the user
 has touched the page.
 
 ---
@@ -143,12 +143,12 @@ has touched the page.
 ## It's a PWA
 
 On the deployed site, phones offer **"Add to home screen"** and it opens
-full-screen with no browser chrome — it looks and feels like a real app.
+full-screen with no browser chrome, it looks and feels like a real app.
 
-- `public/manifest.webmanifest` — name, colours, icons
-- `public/sw.js` — caches the shell so it opens instantly; live data always
+- `public/manifest.webmanifest` - name, colours, icons
+- `public/sw.js` - caches the shell so it opens instantly; live data always
   hits the network
-- `components/InstallPrompt.tsx` — the install button (Android) and the
+- `components/InstallPrompt.tsx` - the install button (Android) and the
   Share → Add to Home Screen hint (iOS)
 
 Icons are generated pink hearts in `public/`. Swap them for your own art if you like.
@@ -169,19 +169,19 @@ Prompt: `lib/translate.ts`. Route: `app/api/translate/route.ts`.
 
 **Three providers, tried in order, and the last one cannot fail:**
 
-1. **BullsAI** — `ALT_AI_BASE_URL`, `ALT_AI_API_KEY`, `ALT_AI_MODEL`
+1. **BullsAI** - `ALT_AI_BASE_URL`, `ALT_AI_API_KEY`, `ALT_AI_MODEL`
    (a comma-separated list, tried in order)
-2. **Gemini** — `GEMINI_API_KEY`, `GEMINI_MODEL` (itself a comma-separated chain)
-3. **Built-in rules** — no keys, no network, always works
+2. **Gemini** - `GEMINI_API_KEY`, `GEMINI_MODEL` (itself a comma-separated chain)
+3. **Built-in rules** - no keys, no network, always works
 
 Measured on the real prompt, same sentence each time:
 
 | model | time | hints |
 |---|---|---|
-| `google/gemma-4-31B-it` | **1.7s** | flat — *"Temperature is too low"* |
-| `zai-org/GLM-5.3-Flash` | 11.7s | much better — *"It sits deeper than her skin"* |
+| `google/gemma-4-31B-it` | **1.7s** | flat - *"Temperature is too low"* |
+| `zai-org/GLM-5.3-Flash` | 11.7s | much better - *"It sits deeper than her skin"* |
 | `zai-org/GLM-4.7-Flash` | times out | unusable on a prompt this long |
-| Gemini `3.5-flash-lite` | 1.2s | good — *"Wrap her up tightly right now"* |
+| Gemini `3.5-flash-lite` | 1.2s | good - *"Wrap her up tightly right now"* |
 
 Default is speed first. If you would rather have the better writing and can live
 with a ~12s wait, put `zai-org/GLM-5.3-Flash` first in `ALT_AI_MODEL`.
@@ -190,7 +190,7 @@ Any provider left unconfigured is skipped. Gemini returned 503 "high demand"
 several times during one afternoon of testing, which is exactly why this is a
 chain and not a single call.
 
-The browser never talks to any of them — the keys stay server-side, and her
+The browser never talks to any of them, the keys stay server-side, and her
 message never reaches the phone of the person guessing.
 
 ---
@@ -199,10 +199,10 @@ message never reaches the phone of the person guessing.
 
 - **He cannot stop his own phone.** Only she can.
 - **He never sees her words** until he's failed 5 times.
-- **She always finds out** how he did — win or lose, including when he walks away.
+- **She always finds out** how he did, win or lose, including when he walks away.
 - **He can leave.** A hidden page cannot vibrate; that is the browser, not a bug.
-  So he is never trapped — his leaving just shows up on her screen.
+  So he is never trapped, his leaving just shows up on her screen.
 - **Nothing extra on either screen.**
-- The buzz loop is capped at 10 minutes. Deliberate — say so in the pitch.
+- The buzz loop is capped at 10 minutes. Deliberate, say so in the pitch.
 
 See `PLAN.md` for the schedule and the demo/video plan.

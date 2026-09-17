@@ -1,4 +1,4 @@
--- ⚠️  DESTRUCTIVE — wipes every account and everything they did.
+-- ⚠️  DESTRUCTIVE, wipes every account and everything they did.
 -- Use it to start clean before a demo. There is no undo.
 --
 -- Order matters: rooms point at profiles, profiles point at auth.users.

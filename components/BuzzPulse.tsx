@@ -6,10 +6,10 @@ import { BUZZ_EVENT } from "@/lib/haptics";
  * What an iPhone gets instead of a vibration.
  *
  * Every buzz pulses the screen edge-to-edge on the same rhythm the motor would
- * have used — red and hard for her cramp, warm and slow for his comfort. On
+ * have used, red and hard for her cramp, warm and slow for his comfort. On
  * Android this runs alongside the real vibration and just makes it more visible.
  *
- * Nothing to tap, nothing to read — it is invisible until a buzz fires.
+ * Nothing to tap, nothing to read, it is invisible until a buzz fires.
  */
 export default function BuzzPulse() {
   const [flash, setFlash] = useState<null | "pain" | "comfort">(null);

@@ -2,7 +2,7 @@ export type Tag = "heat" | "meds" | "rest" | "company" | "warmth";
 export const TAGS: Tag[] = ["heat", "meds", "rest", "company", "warmth"];
 
 /** One thing she needs. Carries its OWN hints, so he is always nudged
- *  toward something still unmet — never toward a need she already ticked. */
+ *  toward something still unmet, never toward a need she already ticked. */
 export type Need = { tag: Tag; label: string; hints: string[]; done: boolean };
 
 export type Pattern = {
@@ -31,7 +31,7 @@ export type Item = {
 /**
  * Three WRONG guesses for the whole message, however many things she needs.
  *
- * Getting one right costs him nothing — he can tick off all three needs without
+ * Getting one right costs him nothing, he can tick off all three needs without
  * ever spending a life. Only "not really" counts. And running out does not stop
  * the buzzing: that stops when she says every need is met, not when he runs out
  * of chances.

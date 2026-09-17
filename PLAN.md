@@ -1,8 +1,8 @@
-# Yuzu — build plan
+# Yuzu, build plan
 
 > **Pain travels one way. Comfort travels back.**
 > She sends her cramp to his phone. He can't switch it off. He has 5 tries to work out
-> what she needs — and only she can say when it stops.
+> what she needs, and only she can say when it stops.
 
 Room codes are called **Cuddle Codes**. 🍊
 
@@ -10,14 +10,14 @@ Room codes are called **Cuddle Codes**. 🍊
 
 ## 1. What we are building
 
-Two phones, one website. Installable to the home screen as a PWA — no app store.
+Two phones, one website. Installable to the home screen as a PWA, no app store.
 
 | | Her phone | His phone |
 |---|---|---|
 | Sees | A sad anime girl in her room, a box to write in, an intensity slider | A hint from the AI, a drawer of things to send, tries left |
-| Never sees | — | **Her actual message** (until he fails 5 times) |
+| Never sees | - | **Her actual message** (until he fails 5 times) |
 | Can do | Write how she feels · send it · say "that helped" / "not really" | Send things from the drawer · add her favourites |
-| Phone does | Soft, slow buzz when something arrives | Hard, sharp buzz — **on a loop, until she says stop** |
+| Phone does | Soft, slow buzz when something arrives | Hard, sharp buzz - **on a loop, until she says stop** |
 
 ### The one rule that makes it a game
 > **He cannot stop his own phone. Only she can.**
@@ -79,11 +79,11 @@ One job, three outputs, from one call. Her sentence goes in, this comes out:
 2. **Words → a list of needs.** "I'm freezing, my back is killing me and I miss you"
    is **three** separate needs, not one. The score only reaches 0 when all three are ticked.
 3. **Hints per need, never the words.** Each need carries its own hints, so he is always
-   nudged toward something *still unfixed* — once she ticks "something warm" off, he stops
+   nudged toward something *still unfixed* - once she ticks "something warm" off, he stops
    being told she is cold. Clearer each failed try. He never sees her sentence until try 5.
 
 **Model:** Gemini Flash, called from our own server route so the browser never sees the key
-and **her message never reaches the phone of the person guessing** — that separation is the
+and **her message never reaches the phone of the person guessing** - that separation is the
 product, not an implementation detail.
 
 **Fallback:** a rule-based translator in the same file. If Gemini is down, rate-limited or the
@@ -99,10 +99,10 @@ key is missing, it takes over automatically and nobody notices. Ship both.
 | Styling | **Tailwind** | Fast, and the whole palette lives in one config |
 | Auth | **Supabase Auth → Google** | Google login in ~20 minutes, no password handling |
 | DB + live sync | **Supabase Postgres + Realtime** | Her phone → his phone in under a second |
-| AI | **Gemini Flash**, behind `/api/translate` | Free tier, cloud-hosted — works for anyone with the link |
-| Buzz | `navigator.vibrate()` | Works in Chrome on **Android**. iPhone can't — plan around it |
+| AI | **Gemini Flash**, behind `/api/translate` | Free tier, cloud-hosted, works for anyone with the link |
+| Buzz | `navigator.vibrate()` | Works in Chrome on **Android**. iPhone can't, plan around it |
 | Deploy | **Vercel** (HTTPS, needed for PWA install + vibration) | One command, free |
-| Install | **PWA** — add to home screen | Feels like a real app, no app store |
+| Install | **PWA** - add to home screen | Feels like a real app, no app store |
 
 ⚠️ **Android for the demo.** iOS Safari has no Vibration API. Both phones on Android, or
 one Android + one laptop with a game controller.
@@ -126,7 +126,7 @@ gifts      id · cycle_id · emoji · name · tag · verdict('pending'|'helped'|
 
 ## 6. Two-day schedule
 
-### Day 1 — it works
+### Day 1, it works
 | Hours | Task | Done when |
 |---|---|---|
 | 0–2 | Next.js + Tailwind + Supabase project, Google login | You can sign in |
@@ -138,7 +138,7 @@ gifts      id · cycle_id · emoji · name · tag · verdict('pending'|'helped'|
 
 **End of Day 1 you have a demo.** Everything below makes it win.
 
-### Day 2 — it wins
+### Day 2, it wins
 | Hours | Task | Why it matters |
 |---|---|---|
 | 0–2 | Multi-need scoring + the buzz loop | The heart of the game |
@@ -155,7 +155,7 @@ gifts      id · cycle_id · emoji · name · tag · verdict('pending'|'helped'|
 | Criterion | 25% | How we win it |
 |---|---|---|
 | **Innovation** | Two-way haptics between two people on different continents. Cramp simulators exist; *comfort* travelling back does not. AI translating words → felt sensation is the novel bit. |
-| **Impact** | Long distance is huge: students, migrant workers, couples apart. And the real point underneath — women describe pain and aren't believed. Yuzu makes it undeniable. |
+| **Impact** | Long distance is huge: students, migrant workers, couples apart. And the real point underneath, women describe pain and aren't believed. Yuzu makes it undeniable. |
 | **Feasibility** | A website anyone installs to their home screen. No app store, no hardware. Gemini's free tier covers it. Day 1 already demos. |
 | **Presentation** | QR on the slide → **the whole room's phones buzz at once**. Then rice on a phone for the video. Nobody forgets it. |
 
@@ -165,7 +165,7 @@ gifts      id · cycle_id · emoji · name · tag · verdict('pending'|'helped'|
 
 1. **Rice on the phone.** Sprinkle a few grains. It jumps when it buzzes. Best shot you have.
 2. **Hard table, mic on.** A sharp jab and a slow rumble *sound* different. Never film on a sofa.
-3. **One unbroken take** with both phones in frame — proof it's real, not edited.
+3. **One unbroken take** with both phones in frame, proof it's real, not edited.
 4. **End on a QR code.** A judge who feels it while watching has already scored you.
 
 ---
@@ -174,12 +174,12 @@ gifts      id · cycle_id · emoji · name · tag · verdict('pending'|'helped'|
 
 - **No clutter.** Her screen: the girl, a box, a slider, one button. That's it.
 - **She is always in control.** She logs it, she judges it, she ends it. The app never
-  tells her what to do — it only asks "did that help?"
+  tells her what to do, it only asks "did that help?"
 - **He never sees her words** until he has failed 5 times.
 - **Cap the buzz loop** at ~10 minutes with a pause on her side. Uncapped is a rage-quit.
   Say this on stage as a design decision, not an oversight.
 - **He can leave. He just can't do it quietly.** Browsers refuse to vibrate, play
-  sound or run timers while a page is hidden — so there is no way to buzz a phone
+  sound or run timers while a page is hidden, so there is no way to buzz a phone
   whose app is closed without Web Push. Rather than pretend, Yuzu shows her:
-  *"Kabir closed the app. You still can't."* Same rule as everything else — she
+  *"Kabir closed the app. You still can't."* Same rule as everything else, she
   always finds out. Web Push (a real background buzz) is the roadmap slide.

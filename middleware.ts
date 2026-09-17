@@ -12,7 +12,7 @@ import { NextResponse, type NextRequest } from "next/server";
 /**
  * Keep people signed in.
  *
- * Supabase hands us cookie options carrying the ACCESS token's lifetime — an
+ * Supabase hands us cookie options carrying the ACCESS token's lifetime, an
  * hour. Writing that verbatim means the browser drops the cookie an hour later
  * and they are asked to sign in again, even though the refresh token was good
  * for far longer. So every auth cookie we write is given the longest life a

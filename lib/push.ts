@@ -4,8 +4,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 /**
  * Registering his phone to be buzzed while the app is closed.
  *
- * The browser gives us an "endpoint" — an address its push service will deliver
- * to — plus two keys so only we can encrypt for it. We keep those, and later the
+ * The browser gives us an "endpoint", an address its push service will deliver
+ * to, plus two keys so only we can encrypt for it. We keep those, and later the
  * server posts her cramp to that address. His phone wakes the service worker,
  * which shows a notification carrying a vibration pattern.
  */
@@ -28,7 +28,7 @@ export function pushState(): PushState {
 }
 
 /**
- * Ask, subscribe, and store. Must be called from a real click — browsers refuse
+ * Ask, subscribe, and store. Must be called from a real click, browsers refuse
  * a permission prompt that the user did not trigger.
  */
 export async function enablePush(sb: SupabaseClient, userId: string): Promise<PushState> {

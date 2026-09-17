@@ -5,10 +5,10 @@
  *  1. At a demo, lots of people type the same thing ("cramps", "my stomach hurts").
  *     One Gemini call serves all of them.
  *  2. It is what makes the QR moment safe: forty phones opening /demo all send the
- *     same preset message, so that is ONE call, not forty — no rate limit, no 429.
+ *     same preset message, so that is ONE call, not forty, no rate limit, no 429.
  *
  * Honest limit: this lives in the memory of one serverless instance. Vercel may run
- * several, so it is a hit-rate improvement, not a guarantee. That is fine — the
+ * several, so it is a hit-rate improvement, not a guarantee. That is fine, the
  * fallback in the route already covers the miss case.
  */
 const TTL_MS = 10 * 60_000;

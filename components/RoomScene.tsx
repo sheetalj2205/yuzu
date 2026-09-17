@@ -18,7 +18,7 @@ export default function RoomScene({
   score: number;
   gifts: { emoji: string; name: string }[];
   angry?: boolean;
-  /** Let the room grow on a tall phone. It keeps its shape — cropping it
+  /** Let the room grow on a tall phone. It keeps its shape, cropping it
    *  loses the window and the lamp, which are how you read her mood. */
   fill?: boolean;
 }) {
@@ -35,7 +35,7 @@ export default function RoomScene({
                      ${fill ? "w-full" : ""}`}>
       <svg viewBox="0 0 520 300" role="img"
            className="block w-full h-auto"
-           aria-label="Her room — it warms up as her pain goes down">
+           aria-label="Her room, which warms up as her pain goes down">
         <defs>
           <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={SKY[0]} /><stop offset="100%" stopColor={SKY[1]} />
