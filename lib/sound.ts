@@ -131,6 +131,67 @@ export function playHit(word?: string) {
   dhish(c, at + gap, pitch * 0.92, heft);      // …oom
 }
 
+/**
+ * What an iPhone gets instead of a vibration.
+ *
+ * iOS Safari has no Vibration API at all, so on those devices a buzz is silent
+ * and invisible unless we make it audible. These are the buzz patterns played
+ * as sound, using the same rhythm the motor would have used: hard and buzzy for
+ * her cramp, low and round for his comfort.
+ */
+export function playBuzz(pattern: number[], kind: "pain" | "comfort") {
+  whenAwake((c) => {
+    let at = c.currentTime + 0.01;
+    for (let i = 0; i < pattern.length; i += 2) {
+      const on = pattern[i] / 1000;
+      const off = (pattern[i + 1] ?? 0) / 1000;
+      if (on <= 0) { at += off; continue; }
+
+      const bus = c.createGain();
+      bus.gain.setValueAtTime(0, at);
+      bus.gain.linearRampToValueAtTime(kind === "pain" ? 0.34 : 0.2, at + 0.01);
+      bus.gain.setValueAtTime(kind === "pain" ? 0.34 : 0.2, Math.max(at + 0.011, at + on - 0.02));
+      bus.gain.linearRampToValueAtTime(0, at + on);
+      bus.connect(c.destination);
+
+      const partials = kind === "pain"
+        ? [["sawtooth", 58], ["square", 172]] as const
+        : [["sine", 48], ["sine", 96]] as const;
+      for (const [wave, hz] of partials) {
+        const osc = c.createOscillator();
+        osc.type = wave;
+        osc.frequency.value = hz;
+        osc.connect(bus);
+        osc.start(at);
+        osc.stop(at + on + 0.02);
+      }
+      at += on + off;
+    }
+  });
+}
+
+/**
+ * "phewww". A long falling sigh for a wrong guess: filtered noise sweeping down,
+ * with a pitch falling under it. Deflating on purpose.
+ */
+export function playPhew() {
+  whenAwake((c) => {
+    const at = c.currentTime + 0.01;
+    noise(c, at, 0.75, 0.2, "bandpass", 2200, 3.5, 320);   // the air going out
+    const osc = c.createOscillator();
+    const g = c.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(420, at);
+    osc.frequency.exponentialRampToValueAtTime(110, at + 0.7);
+    g.gain.setValueAtTime(0, at);
+    g.gain.linearRampToValueAtTime(0.16, at + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + 0.75);
+    osc.connect(g).connect(c.destination);
+    osc.start(at);
+    osc.stop(at + 0.8);
+  });
+}
+
 /** Little moments that aren't punches. */
 export function cue(name: "arrive" | "win" | "wrong" | "heart" | "kiss") {
   const NOTES: Record<typeof name, [number, number, number][]> = {

@@ -33,6 +33,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             only honours this legacy one. Without it iOS saves a bookmark that
             opens in browser chrome instead of as an app. */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
+        {/* so anyone can check what is actually live, without guessing at chunk names */}
+        <meta name="yuzu-build" content={process.env.NEXT_PUBLIC_BUILD ?? "dev"} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link

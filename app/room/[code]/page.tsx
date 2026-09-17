@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase-client";
-import { buzzComfort, buzzPain, buzzStrike, startBuzzLoop, stopBuzz } from "@/lib/haptics";
+import { buzzComfort, buzzPain, buzzStrike, buzzWrong, startBuzzLoop, stopBuzz } from "@/lib/haptics";
 import { hintFor, score as scoreOf, tickOff, unmet } from "@/lib/translate";
 import { cue } from "@/lib/sound";
 import { readPartner, trackVisibility, type Presence } from "@/lib/presence";
@@ -116,6 +116,13 @@ export default function Room() {
       setIncoming(payload.gift as Gift);
       cue("arrive");
       buzzComfort();
+    });
+
+    ch.on("broadcast", { event: "wrong" }, () => {
+      if (me !== "him") return;
+      buzzWrong();
+      setBuzzing(true);
+      setTimeout(() => setBuzzing(false), 900);
     });
 
     ch.on("broadcast", { event: "heart" }, () => {
@@ -300,6 +307,10 @@ export default function Room() {
       body: JSON.stringify({ message, intensity }),
     });
     const t = await res.json();
+    // close anything still open, so two rounds can never run at once
+    await sb.from("cycles").update({ closed_at: new Date().toISOString() })
+      .eq("room_id", roomId).is("closed_at", null);
+
     const { data } = await sb.from("cycles").insert({
       room_id: roomId, message, intensity,
       pattern: { envelope: t.envelope, peak: t.peak, pulse_ms: t.pulse_ms,
@@ -351,6 +362,7 @@ export default function Room() {
       const next = { ...cycle, tries, revealed };
       setCycle(next);
       say("cycle", { cycle: next });
+      say("wrong", {});
       void pushPartner("Not that.", "She said it didn't help. Try something else.",
                        [200, 80, 200, 80, 200, 80, 400], "yuzu-nope");
       return;
@@ -394,6 +406,16 @@ export default function Room() {
     void pushPartner(hit.word, "She's had enough.", hit.pattern, "yuzu-strike");
   }, [sb, cycle, pushPartner, say]);
 
+  /** Bin the open round so she can write a new one. */
+  const rewrite = useCallback(async () => {
+    if (!cycle) return;
+    finished.current.add(cycle.id);
+    const closed = { ...cycle, closed_at: new Date().toISOString() };
+    await sb.from("cycles").update({ closed_at: closed.closed_at }).eq("id", cycle.id);
+    setIncoming(null); setPow(null); setCycle(null);
+    say("cycle", { cycle: closed });
+  }, [sb, cycle, say]);
+
   const forgive = useCallback(async () => {
     if (!cycle) return;
     finished.current.add(cycle.id);
@@ -426,6 +448,7 @@ export default function Room() {
       onVerdict={verdict}
       onStrike={strike}
       onForgive={forgive}
+      onRewrite={rewrite}
     />
   ) : (
     <HisScreen

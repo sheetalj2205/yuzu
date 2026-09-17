@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import RoomScene from "./RoomScene";
-import type { Need } from "@/lib/types";
+import { MAX_TRIES, type Need } from "@/lib/types";
 import type { Presence } from "@/lib/presence";
 
 /**
@@ -23,7 +23,7 @@ export const HITS = [
 
 export default function HerScreen({
   partnerName, score, needs, gifts, incoming, waiting, failed, hits, won,
-  partnerAt, leftCount, onSend, onVerdict, onStrike, onForgive,
+  partnerAt, leftCount, onSend, onVerdict, onStrike, onForgive, onRewrite,
 }: {
   partnerName: string | null;
   score: number;
@@ -31,7 +31,7 @@ export default function HerScreen({
   gifts: Gift[];
   incoming: Gift | null;      // what he just sent, awaiting her verdict
   waiting: boolean;           // he has her message, hasn't sent yet
-  failed: boolean;            // he burned all 5 tries
+  failed: boolean;            // he used up every wrong guess
   hits: number;               // how many times she has hit back
   won: boolean;               // everything she asked for just landed
   partnerAt: Presence;        // is he actually looking at this?
@@ -40,6 +40,7 @@ export default function HerScreen({
   onVerdict: (helped: boolean) => void;
   onStrike: (hit: typeof HITS[number]) => void;
   onForgive: () => void;
+  onRewrite: () => void;      // bin this round and write a new one
 }) {
   const [msg, setMsg] = useState("");
   const [level, setLevel] = useState(8);
@@ -109,7 +110,7 @@ export default function HerScreen({
         <div className="card text-center">
           <p className="font-round font-black text-lg text-pain mb-1">He ran out of tries.</p>
           <p className="text-inkSoft text-sm">
-            {partnerName ?? "He"} tried 5 times and nothing landed. He was guessing.
+            {partnerName ?? "He"} was wrong {MAX_TRIES} times and nothing landed.
           </p>
           <p className="font-round font-black text-sm text-pain mt-4 mb-2">Your turn ෆ</p>
           <div className="grid grid-cols-4 gap-2">
@@ -135,10 +136,14 @@ export default function HerScreen({
         <div className="card text-center">
           <p className="font-round font-black text-base mb-1">Sent ✓</p>
           <p className="text-inkSoft text-sm">
-            {waiting
-              ? `${partnerName ?? "He"}'s phone is buzzing. He's trying to work it out.`
-              : `${partnerName ?? "He"}'s phone is buzzing.`}
+            {partnerName ?? "He"}&apos;s phone is buzzing. He&apos;s trying to work it out.
           </p>
+          {/* Without this she is stuck: if he never gets there and she never
+              forgives, the round stays open and she can never say anything new. */}
+          <button onClick={onRewrite}
+            className="mt-4 text-inkFaint text-xs underline underline-offset-4">
+            Say something different instead
+          </button>
         </div>
       ) : (
         /* ---- nothing sent yet: box, slider, button. nothing else. ---- */

@@ -1,6 +1,6 @@
 "use client";
 import type { Pattern } from "./types";
-import { playHit } from "./sound";
+import { playBuzz, playHit, playPhew } from "./sound";
 
 /**
  * Haptics, with an honest iPhone story.
@@ -37,7 +37,13 @@ function announce(pattern: number[], kind: "pain" | "comfort") {
  * The screen pulse still runs everywhere, because an iPhone cannot vibrate at all.
  */
 function fire(pattern: number[], kind: "pain" | "comfort") {
-  if (canVibrate()) { try { navigator.vibrate(pattern); } catch {} }
+  if (canVibrate()) {
+    try { navigator.vibrate(pattern); } catch {}
+  } else {
+    // iPhone has no vibration motor to reach. Sound is the only thing left,
+    // so there it is not a soundtrack, it IS the buzz.
+    playBuzz(pattern, kind);
+  }
   announce(pattern, kind);
 }
 
@@ -60,6 +66,14 @@ export function buzzStrike(pattern: number[], word?: string) {
   if (canVibrate()) { try { navigator.vibrate(pattern); } catch {} }
   announce(pattern, "pain");
   playHit(word);
+}
+
+/** He guessed wrong. On a phone that cannot buzz, this is how he finds out. */
+export function buzzWrong() {
+  const pattern = [200, 80, 200, 80, 200, 80, 400];
+  if (canVibrate()) { try { navigator.vibrate(pattern); } catch {} }
+  playPhew();                       // every device: the sigh is the point
+  announce(pattern, "pain");
 }
 
 export function stopBuzz() {
