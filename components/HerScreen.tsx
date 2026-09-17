@@ -22,7 +22,7 @@ export const HITS = [
 ];
 
 export default function HerScreen({
-  partnerName, score, needs, gifts, incoming, waiting, failed, hits,
+  partnerName, score, needs, gifts, incoming, waiting, failed, hits, won,
   partnerAt, leftCount, onSend, onVerdict, onStrike, onForgive,
 }: {
   partnerName: string | null;
@@ -33,6 +33,7 @@ export default function HerScreen({
   waiting: boolean;           // he has her message, hasn't sent yet
   failed: boolean;            // he burned all 5 tries
   hits: number;               // how many times she has hit back
+  won: boolean;               // everything she asked for just landed
   partnerAt: Presence;        // is he actually looking at this?
   leftCount: number;          // how many times he has wandered off this cycle
   onSend: (message: string, intensity: number) => void;
@@ -70,8 +71,16 @@ export default function HerScreen({
         </div>
       )}
 
-      {/* ---- he sent something: she sees it, then judges it ---- */}
-      {incoming ? (
+      {/* ---- everything landed: her moment, before the box comes back ---- */}
+      {won ? (
+        <div className="card text-center pop">
+          <div className="text-5xl mb-2">✿</div>
+          <p className="font-round font-black text-xl text-calm mb-1">All of it.</p>
+          <p className="text-inkSoft text-sm">
+            {partnerName ?? "He"} got there. The rain stopped.
+          </p>
+        </div>
+      ) : incoming ? (
         <div className="card text-center pop">
           <div className="text-6xl mb-2">{incoming.emoji}</div>
           <p className="font-round font-black text-xl mb-1">{incoming.name}</p>

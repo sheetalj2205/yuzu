@@ -37,6 +37,7 @@ export default function Room() {
   const [leftCount, setLeftCount] = useState(0);
   const [pow, setPow]           = useState<string | null>(null);   // comic hit on HIS screen
   const [love, setLove]         = useState<{ kind: "heart" | "kiss"; n: number } | null>(null);
+  const [won, setWon]           = useState(false);   // her moment, before the box comes back
   const [push, setPush]         = useState<PushState>("unsupported");
   const stopLoop = useRef<null | (() => void)>(null);
   const cycleRef = useRef<Cycle | null>(null);
@@ -278,8 +279,7 @@ export default function Room() {
       needs: t.needs,
     }).select().single();
     if (data) { setCycle(data as Cycle); say("cycle", { cycle: data }); }
-    setGifts([]);
-    setHits(0);
+    setHits(0);   // his gifts stay in her room across cycles — they are hers now
     void pushPartner(
       "She's in pain",
       `${t.label} — ${t.needs.length} ${t.needs.length === 1 ? "thing" : "things"} she needs.`,
@@ -332,7 +332,13 @@ export default function Room() {
     const closed_at = done ? new Date().toISOString() : null;
     await sb.from("cycles").update({ needs, closed_at }).eq("id", cycle.id);
     const next = { ...cycle, needs, closed_at };
-    setCycle(done ? null : next);
+    if (done) {
+      // let her sit in the warm room for a moment before the box comes back
+      setWon(true);
+      setTimeout(() => { setWon(false); setCycle(null); }, 4500);
+    } else {
+      setCycle(next);
+    }
     say("cycle", { cycle: next });
 
     // he should feel her saying yes — a heart each time, kisses when it is all done
@@ -373,13 +379,14 @@ export default function Room() {
   return me === "her" ? (
     <HerScreen
       partnerName={partner}
-      score={cycle?.closed_at ? 0 : points}
+      score={won || cycle?.closed_at ? 0 : points}
       needs={needs}
       gifts={gifts}
       incoming={incoming}
       waiting={!!cycle && !incoming}
       failed={!!cycle?.revealed && unmet(needs).length > 0}
       hits={hits}
+      won={won}
       partnerAt={partnerAt}
       leftCount={leftCount}
       onSend={send}
