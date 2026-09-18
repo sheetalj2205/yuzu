@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { buildPrompt, fallback, normalise } from "@/lib/translate";
+import { SYSTEM_PROMPT, fallback, normalise, userTurn } from "@/lib/translate";
 import { cacheGet, cacheKey, cacheSet } from "@/lib/cache";
 import type { Translation } from "@/lib/types";
 
@@ -24,6 +24,9 @@ export const runtime = "nodejs";
 const RESPONSE_SCHEMA = {
   type: "object",
   properties: {
+    // listed first on purpose: the model writes this before the needs, so it has
+    // to count her complaints before it can invent a fourth one
+    complaints: { type: "array", items: { type: "string" } },
     envelope:   { type: "string", enum: ["swell", "stab", "grind", "throb"] },
     peak:       { type: "number" },
     pulse_ms:   { type: "number" },
@@ -42,7 +45,7 @@ const RESPONSE_SCHEMA = {
       },
     },
   },
-  required: ["envelope", "peak", "pulse_ms", "duration_s", "label", "needs"],
+  required: ["complaints", "envelope", "peak", "pulse_ms", "duration_s", "label", "needs"],
 };
 
 type Attempt = { ok: true; value: Translation } | { ok: false; why: string };
@@ -52,7 +55,7 @@ type Attempt = { ok: true; value: Translation } | { ok: false; why: string };
  * and popular models return 503 "high demand" at random moments.
  * "-lite" models have no reasoning to switch off and reject thinkingConfig.
  */
-async function tryGemini(prompt: string, level: number, message: string): Promise<Attempt> {
+async function tryGemini(message: string, level: number): Promise<Attempt> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return { ok: false, why: "gemini not configured" };
 
@@ -69,7 +72,12 @@ async function tryGemini(prompt: string, level: number, message: string): Promis
           method: "POST",
           headers: { "Content-Type": "application/json", "x-goog-api-key": key },
           body: JSON.stringify({
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            // The rules go in as a system instruction, not mixed into her turn.
+            // Same text in the user turn let her sentence colour the rules: a
+            // long, emotional message pulled it toward inventing extra needs,
+            // because the instructions were just more prose sitting beside it.
+            systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+            contents: [{ role: "user", parts: [{ text: userTurn(message, level) }] }],
             generationConfig: {
               temperature: 0.4,
               responseMimeType: "application/json",
@@ -87,7 +95,7 @@ async function tryGemini(prompt: string, level: number, message: string): Promis
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!text) { why = `${model} → empty`; continue; }
 
-      return { ok: true, value: normalise(JSON.parse(text), level, message) };
+      return { ok: true, value: normalise(JSON.parse(text), level) };
     } catch (err) {
       why = `${model} → ${(err as Error).message}`;
     }
@@ -107,7 +115,7 @@ export async function POST(req: Request) {
   const cached = cacheGet(ck);
   if (cached) return NextResponse.json(cached);
 
-  const attempt = await tryGemini(buildPrompt(message, level), level, message);
+  const attempt = await tryGemini(message, level);
   if (attempt.ok) {
     const value = { ...attempt.value, by: "gemini" };
     cacheSet(ck, value);
