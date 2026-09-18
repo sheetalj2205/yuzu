@@ -353,6 +353,17 @@ export default function Room() {
     if (data) setCustom(c => [...c, { id: data.id, emoji, name, tag: "favourite", custom: true }]);
   }, [sb, roomId]);
 
+  /**
+   * He threw out something he added himself. Gone from the drawer at once, so
+   * the tile does not sit there through a round trip, then gone from the room.
+   * Only the two of them can touch this room's favourites, so there is nobody
+   * else's tile he could be deleting.
+   */
+  const removeFavourite = useCallback(async (id: string) => {
+    setCustom(c => c.filter(i => i.id !== id));
+    await sb.from("favourites").delete().eq("id", id);
+  }, [sb]);
+
   /* ---------------- she judges ---------------- */
   const verdict = useCallback(async (helped: boolean) => {
     if (!cycle || !incoming) return;
@@ -462,6 +473,7 @@ export default function Room() {
   ) : (
     <HisScreen
       partnerName={partner}
+      roomCode={code}
       hint={cycle && !cycle.revealed ? hintFor(needs, cycle.tries) : null}
       tries={cycle?.tries ?? 0}
       unmetCount={cycle ? unmet(needs).length : 0}
@@ -475,6 +487,7 @@ export default function Room() {
       onEnablePush={turnOnPush}
       onSend={sendGift}
       onAddFavourite={addFavourite}
+      onRemoveFavourite={removeFavourite}
     />
   );
 }
