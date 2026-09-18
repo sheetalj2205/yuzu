@@ -26,6 +26,43 @@ function Rooms() {
   const [err, setErr] = useState("");
   const [closing, setClosing] = useState<string | null>(null);   // room id awaiting a yes
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [canShare, setCanShare] = useState(false);
+
+  // only after mount: navigator does not exist while this renders on the server
+  useEffect(() => { setCanShare(typeof navigator !== "undefined" && !!navigator.share); }, []);
+
+  /**
+   * Get the code to him, by whatever the phone in her hand can actually do.
+   *
+   * The share sheet first, because on a phone that is the whole job in one tap:
+   * straight into WhatsApp, with the code and a line saying what it is. The
+   * clipboard next. And if a browser allows neither, the code is selected for
+   * her so the phone's own Copy appears over it.
+   */
+  const sendCode = async (code: string) => {
+    const text = `My Cuddle Code is ${code}. Open ${location.origin} and type it in ♡`;
+
+    if (navigator.share) {
+      try { await navigator.share({ title: "Yuzu", text }); return; }
+      catch { /* she backed out of the sheet, or it refused: fall through */ }
+    }
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(code);
+      setTimeout(() => setCopied(null), 2000);
+      return;
+    } catch { /* no clipboard permission, or an insecure context */ }
+
+    const el = document.getElementById(`code-${code}`);
+    if (el) {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const sel = getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    }
+  };
 
   const load = useCallback(async () => {
     const sb = supabase();
@@ -136,15 +173,31 @@ function Rooms() {
             <div className="flex flex-col gap-3 mb-5">
               {rooms.map((r) => (
                 <div key={r.id} className="card !p-4 text-left">
-                  <button onClick={() => router.push(`/room/${r.code}`)}
-                    className="w-full text-left active:translate-y-[2px]">
-                    <p className="font-round font-black text-3xl tracking-[.18em] text-pain">
-                      {r.code}
-                    </p>
-                    <p className="text-inkSoft text-xs mt-1">
-                      {r.partner ? `${r.partner} is in this one ♡` : "Nobody has joined yet"}
-                    </p>
-                  </button>
+                  {/*
+                    The code is NOT inside a button.
+
+                    It used to be, and iOS refuses to let you select text inside
+                    a button, so long-pressing the code on an iPhone did nothing
+                    at all and there was no way to get it to him. select-all
+                    means one press takes the whole code, never four letters.
+                  */}
+                  <p id={`code-${r.code}`}
+                     className="font-round font-black text-3xl tracking-[.18em] text-pain
+                                select-all cursor-text">
+                    {r.code}
+                  </p>
+                  <p className="text-inkSoft text-xs mt-1 mb-3">
+                    {r.partner ? `${r.partner} is in this one ♡` : "Nobody has joined yet"}
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={() => router.push(`/room/${r.code}`)}
+                      className="btn !py-2 !text-sm">Go in →</button>
+                    <button onClick={() => sendCode(r.code)}
+                      className="btn btn-ghost !py-2 !text-sm">
+                      {copied === r.code ? "Copied ✓" : canShare ? "Send it" : "Copy code"}
+                    </button>
+                  </div>
 
                   {closing === r.id ? (
                     <div className="mt-3 border-t border-line pt-3">
