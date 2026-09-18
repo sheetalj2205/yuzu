@@ -69,10 +69,10 @@ self.addEventListener("push", (event) => {
    * "updated in the background" notice and then cancelling his subscription
    * outright, which is how notifications went from working to completely dead.
    *
-   * There is no longer a check anywhere. Every version of it asked "is his page
-   * visible", and on iOS that question has no honest answer: a home-screen app
-   * that has been swiped away is not reported as hidden. So Yuzu sends every
-   * time, and this shows every time.
+   * Whether he is watching is decided before anything is sent, on her phone,
+   * from the last time his thumb touched the screen. Not from "is his page
+   * visible", which is the question iOS answers wrong. By the time a push
+   * reaches here it is one that should be seen, so this shows every one.
    */
   const title = payload.title || "She needs you";
   event.waitUntil(

@@ -17,8 +17,11 @@ type Cycle = {
   tries: number; revealed: boolean; closed_at: string | null;
 };
 
+/** How long after his last touch we still count him as holding the phone. */
+const RECENTLY = 20_000;
+
 /** The last attempt to reach his phone: for her eyes, so she never has to guess. */
-type Reach = { at: number; state: "buzzed" | "unreachable" } | null;
+type Reach = { at: number; state: "watching" | "buzzed" | "unreachable" } | null;
 
 export default function Room() {
   const { code } = useParams<{ code: string }>();
@@ -106,6 +109,18 @@ export default function Room() {
    */
   const chanRef = useRef<ReturnType<typeof sb.channel> | null>(null);
 
+  /**
+   * When his thumb last touched the screen. 0 means never.
+   *
+   * Not when his page was last "visible". Three versions of this asked iOS that
+   * question and iOS answered wrong every time: a home-screen app that has been
+   * swiped away is not reported as hidden, so it kept insisting he was watching
+   * from inside his pocket. A touch is different. A touch needs a person. A
+   * phone face down on a table cannot produce one, and no amount of iOS
+   * bookkeeping can invent one.
+   */
+  const partnerUsingRef = useRef(0);
+
   useEffect(() => {
     if (!roomId || !me || !meId) return;
 
@@ -170,12 +185,31 @@ export default function Room() {
       if (name) setPartner(name);
     });
 
+    ch.on("broadcast", { event: "using" }, () => { partnerUsingRef.current = Date.now(); });
+
     ch.subscribe(status => {
       if (status === "SUBSCRIBED") void ch.track({ role: me, name: myName, state: "here" });
     });
 
     const untrack = trackVisibility(ch, { role: me, name: myName });
-    return () => { untrack(); chanRef.current = null; sb.removeChannel(ch); };
+
+    /* Real input only: a tap, a swipe, a key. Never a timer and never a
+       visibility flag, because those are the two things that lied. Throttled,
+       since she needs to know he is here, not how fast he scrolls. */
+    let told = 0;
+    const iAmHere = () => {
+      const now = Date.now();
+      if (now - told < 4000) return;
+      told = now;
+      void ch.send({ type: "broadcast", event: "using", payload: {} });
+    };
+    const inputs = ["pointerdown", "touchstart", "keydown"] as const;
+    for (const type of inputs) addEventListener(type, iAmHere, { passive: true });
+
+    return () => {
+      for (const type of inputs) removeEventListener(type, iAmHere);
+      untrack(); chanRef.current = null; sb.removeChannel(ch);
+    };
   }, [sb, roomId, me, meId, myName]);
 
   /**
@@ -324,26 +358,27 @@ export default function Room() {
    * in his pocket.
    */
   /**
-   * Buzz his phone. Always.
+   * Buzz his phone, unless his thumb is already on it.
    *
-   * There used to be a check here: skip the push when he is already looking at
-   * the screen. It is why notifications never worked, and the reason is worth
-   * keeping written down.
+   * Not sent when he has touched the screen in the last twenty seconds. He
+   * felt it in the app a moment ago; a banner on top of that is noise.
    *
-   * Every version of that check asked the same question, "is his page visible",
-   * and on iOS that question has no honest answer. A home-screen app that has
-   * been swiped away is not reported as hidden, so it went on claiming he was
-   * watching from inside his pocket, and her phone politely said nothing. The
-   * heartbeat was meant to fix that and did not: a beat is only sent while the
-   * page believes it is visible, so it inherited the same lie.
+   * Three earlier versions of this check asked "is his page visible" and iOS
+   * answered wrong every single time, which is why notifications were dead for
+   * weeks. This one never asks iOS anything. It waits to be told about a touch,
+   * and a touch needs a person: a phone in a pocket cannot produce one. When in
+   * doubt it sends, because a banner he did not need is a far smaller failure
+   * than her pain not reaching him.
    *
-   * There is no signal on iOS that says "he is not looking". So Yuzu stops
-   * pretending there is. It sends, every time. If he happens to be holding the
-   * phone he gets a banner for something he already felt, which is a far
-   * smaller failure than her pain never reaching him at all.
+   * The cost, stated plainly: if he reads a hint for half a minute without
+   * touching anything, he gets a notification while looking straight at it.
    */
   const pushPartner = useCallback(async (title: string, body: string, vibrate: number[], tag: string) => {
     if (!roomId) return;
+    if (Date.now() - partnerUsingRef.current < RECENTLY) {
+      setReach({ at: Date.now(), state: "watching" });
+      return;
+    }
     try {
       const res = await fetch("/api/push", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -373,9 +408,9 @@ export default function Room() {
    * this is every twenty, under the same ten minute cap, and it stops the moment
    * she says every need is met. He still cannot end it. Only she can.
    *
-   * This is what "he cannot switch it off" actually means on an iPhone, so it
-   * does not try to work out whether he is watching. It just keeps going until
-   * she says every need is met.
+   * This is what "he cannot switch it off" actually means on an iPhone. It
+   * pauses while his thumb is on the screen, because he is already being
+   * punished by the game itself, and starts again the moment he wanders off.
    */
   useEffect(() => {
     if (me !== "her" || !cycleId) return;
