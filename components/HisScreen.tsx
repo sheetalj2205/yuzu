@@ -31,6 +31,12 @@ export default function HisScreen({
   const [adding, setAdding] = useState(false);
   const [emoji, setEmoji] = useState(FAVE_EMOJI[0]);
   const [name, setName] = useState("");
+  const [ownEmoji, setOwnEmoji] = useState("");   // whatever he types himself
+
+  /* Take the last character he typed, so a keyboard that inserts a whole
+     sequence still leaves one emoji in the box. */
+  const takeOne = (raw: string) => [...raw.trim()].slice(-2).join("").slice(0, 4);
+  const chosen = ownEmoji || emoji;
   const left = MAX_TRIES - tries;
 
   return (
@@ -140,12 +146,25 @@ export default function HisScreen({
               <p className="text-inkSoft text-xs mb-2">You know her. Add what actually works.</p>
               <div className="flex flex-wrap gap-2 mb-3">
                 {FAVE_EMOJI.map((e) => (
-                  <button key={e} onClick={() => setEmoji(e)} aria-pressed={e === emoji}
+                  <button key={e}
+                    onClick={() => { setEmoji(e); setOwnEmoji(""); }}
+                    aria-pressed={e === chosen}
                     className={`text-xl bg-surface border-2 rounded-2xl px-2 py-1
-                                ${e === emoji ? "border-lav scale-110" : "border-line"}`}>
+                                ${e === chosen ? "border-lav scale-110" : "border-line"}`}>
                     {e}
                   </button>
                 ))}
+                {/* or his own, because the twelve above are never the right one */}
+                <input
+                  id="own-emoji"
+                  value={ownEmoji}
+                  onChange={(e) => setOwnEmoji(takeOne(e.target.value))}
+                  placeholder="🙂"
+                  inputMode="text"
+                  aria-label="Or type your own emoji"
+                  className={`w-14 text-center bg-surface border-2 rounded-2xl px-1 py-1
+                              ${ownEmoji ? "border-lav" : "border-line border-dashed"}`}
+                />
               </div>
               <input
                 id="fave" value={name} onChange={(e) => setName(e.target.value)} maxLength={34}
@@ -154,8 +173,11 @@ export default function HisScreen({
               />
               <div className="grid grid-cols-2 gap-2">
                 <button className="btn btn-warm !py-2 !text-sm"
-                  onClick={() => { if (!name.trim()) return;
-                    onAddFavourite(emoji, name.trim()); setName(""); setAdding(false); }}>
+                  onClick={() => {
+                    if (!name.trim()) return;
+                    onAddFavourite(chosen || "🎁", name.trim());
+                    setName(""); setOwnEmoji(""); setAdding(false);
+                  }}>
                   Add ♡
                 </button>
                 <button className="btn btn-ghost !py-2 !text-sm" onClick={() => setAdding(false)}>

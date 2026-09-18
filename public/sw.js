@@ -60,6 +60,18 @@ self.addEventListener("push", (event) => {
   let payload = {};
   try { payload = event.data ? event.data.json() : {}; } catch { /* keep defaults */ }
 
+  /**
+   * Is he actually looking at it right now?
+   *
+   * The worker can see his open windows and whether any is visible, which the
+   * sender cannot. Deciding this on the sending side from presence killed every
+   * notification on iPhone, because iOS does not report a suspended home-screen
+   * app as hidden.
+   */
+  const decide = self.clients
+    .matchAll({ type: "window", includeUncontrolled: true })
+    .then((tabs) => tabs.some((t) => t.visibilityState === "visible" && t.focused));
+
   const title = payload.title || "She needs you";
   const options = {
     body: payload.body || "Open Yuzu.",
@@ -71,7 +83,13 @@ self.addEventListener("push", (event) => {
     vibrate: payload.vibrate || [300, 120, 300, 120, 300],
     data: { url: payload.url || "/" },
   };
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    decide.then((watching) => {
+      // he is looking at the screen; he felt it in the app a second ago
+      if (watching) return;
+      return self.registration.showNotification(title, options);
+    })
+  );
 });
 
 self.addEventListener("notificationclick", (event) => {

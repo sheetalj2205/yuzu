@@ -33,6 +33,14 @@ body {
 .his-ground {
   background: linear-gradient(170deg, #FFF8FB 0%, #FFF1F6 100%);
 }
+/**
+ * iOS Safari zooms the whole page in when you focus a field whose text is under
+ * 16px, and it does not zoom back out. That is what was happening when he went
+ * to add one of her favourites. Nothing here goes below 16px on a touch screen.
+ */
+input, textarea, select { font-size: 16px; }
+@media (min-width: 768px) { input, textarea, select { font-size: inherit; } }
+
 @keyframes pop { from { transform: scale(0) rotate(-30deg); opacity: 0 }
                  to   { transform: scale(1) rotate(0);      opacity: 1 } }
 .pop { animation: pop .55s cubic-bezier(.2,1.6,.4,1) both; }
