@@ -58,12 +58,28 @@ export async function POST(req: Request) {
     url: typeof url === "string" && url.startsWith("/") ? url : "/room",
   });
 
+  /**
+   * How it is sent matters as much as what is sent, on an iPhone.
+   *
+   * urgency "high": the default is "normal", and a push service is allowed to
+   * sit on those and deliver them in a batch later to save the phone's battery.
+   * A cramp delivered in its own good time is not a cramp. High tells Apple to
+   * wake the phone now, which is also what makes it alert rather than arrive
+   * quietly in Notification Center.
+   *
+   * TTL 10 minutes: the default is FOUR WEEKS. With his phone off, Apple would
+   * hold every one of these and deliver the lot days later, so he would be
+   * buzzed thirty times for a cramp she had long since got over. Ten minutes
+   * matches the cap on the buzz loop: past that, it is not news any more.
+   */
+  const howToSend = { urgency: "high" as const, TTL: 600 };
+
   let sent = 0;
   const dead: string[] = [];
   await Promise.all(subs.map(async (s) => {
     try {
       await webpush.sendNotification(
-        { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload);
+        { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, howToSend);
       sent++;
     } catch (err) {
       // 404/410 mean the browser threw the subscription away, stop storing it
