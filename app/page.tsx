@@ -1,11 +1,33 @@
 "use client";
-import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase-client";
 
 function Login() {
   const params = useSearchParams();
+  const router = useRouter();
   const error = params.get("error");
+  const [checking, setChecking] = useState(true);
+
+  /**
+   * Are they already signed in?
+   *
+   * This page used to render the Google button no matter what, so a perfectly
+   * good session still meant tapping through the account chooser on every
+   * launch. The session was never the problem: nothing ever asked for it.
+   *
+   * Nobody signed in should ever see this screen. Signing out is on the room
+   * screen, where they can always reach it.
+   */
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase().auth.getUser();
+      if (!user) return setChecking(false);
+      const { data: p } = await supabase()
+        .from("profiles").select("gender").eq("id", user.id).maybeSingle();
+      router.replace(p?.gender ? "/room" : "/onboarding");
+    })();
+  }, [router]);
 
   const signIn = async () => {
     await supabase().auth.signInWithOAuth({
@@ -19,6 +41,9 @@ function Login() {
       },
     });
   };
+
+  // straight through, rather than a flash of a button they do not need
+  if (checking && !error) return null;
 
   return (
     <main className="min-h-dvh grid place-items-center px-5 py-10">

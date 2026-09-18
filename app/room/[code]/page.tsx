@@ -6,7 +6,7 @@ import { buzzComfort, buzzPain, buzzStrike, buzzWrong, startBuzzLoop, stopBuzz }
 import { hintFor, score as scoreOf, tickOff, unmet } from "@/lib/translate";
 import { cue } from "@/lib/sound";
 import { readPartner, trackVisibility, type Presence } from "@/lib/presence";
-import { enablePush, pushState, type PushState } from "@/lib/push";
+import { enablePush, ensurePush, pushState, type PushState } from "@/lib/push";
 import { MAX_TRIES, type Item, type Need, type Pattern } from "@/lib/types";
 import HerScreen, { HITS, type Gift } from "@/components/HerScreen";
 import HisScreen from "@/components/HisScreen";
@@ -16,6 +16,9 @@ type Cycle = {
   pattern: Pattern; needs: Need[];
   tries: number; revealed: boolean; closed_at: string | null;
 };
+
+/** The last attempt to reach his phone: for her eyes, so she never has to guess. */
+type Reach = { at: number; state: "watching" | "buzzed" | "unreachable" } | null;
 
 export default function Room() {
   const { code } = useParams<{ code: string }>();
@@ -39,6 +42,8 @@ export default function Room() {
   const [love, setLove]         = useState<{ kind: "heart" | "kiss"; n: number } | null>(null);
   const [won, setWon]           = useState(false);   // her moment, before the box comes back
   const [push, setPush]         = useState<PushState>("unsupported");
+  /** What happened the last time we tried to reach him, so she is never guessing. */
+  const [reach, setReach]       = useState<Reach>(null);
   const stopLoop = useRef<null | (() => void)>(null);
   const cycleRef = useRef<Cycle | null>(null);
   const meRef = useRef<"her" | "him" | null>(null);
@@ -63,6 +68,9 @@ export default function Room() {
       setMeId(user.id);
       setMyName(p.name ?? "Someone");
       setPush(pushState());
+      // Safari cancels a subscription and leaves the permission granted, so his
+      // phone looks fine while nothing can reach it. Put it back, quietly.
+      void ensurePush(sb, user.id).then(setPush);
 
       const { data: room } = await sb.from("rooms").select("id, her_id, him_id").eq("code", code).single();
       if (!room) return router.push("/room");
@@ -172,16 +180,22 @@ export default function Room() {
       if (name) setPartner(name);
     });
 
+    const beat = () => { void ch.send({ type: "broadcast", event: "watching", payload: {} }); };
+
     ch.subscribe(status => {
-      if (status === "SUBSCRIBED") void ch.track({ role: me, name: myName, state: "here" });
+      if (status !== "SUBSCRIBED") return;
+      void ch.track({ role: me, name: myName, state: "here" });
+      // at once, not in five seconds: otherwise her very first send lands inside
+      // the gap before his first beat and pushes a notification at a phone he is
+      // already holding
+      if (document.visibilityState === "visible") beat();
     });
 
     const untrack = trackVisibility(ch, { role: me, name: myName });
-    const beat = setInterval(() => {
-      if (document.visibilityState !== "visible") return;
-      void ch.send({ type: "broadcast", event: "watching", payload: {} });
+    const beating = setInterval(() => {
+      if (document.visibilityState === "visible") beat();
     }, 5000);
-    return () => { clearInterval(beat); untrack(); chanRef.current = null; sb.removeChannel(ch); };
+    return () => { clearInterval(beating); untrack(); chanRef.current = null; sb.removeChannel(ch); };
   }, [sb, roomId, me, meId, myName]);
 
   /**
@@ -196,9 +210,27 @@ export default function Room() {
   useEffect(() => {
     if (!roomId) return;
     let stop = false;
+    let ticks = 0;
 
     const sync = async () => {
       if (stop || document.hidden) return;
+
+      /**
+       * She can close a room for good while he is sitting in it. Then this room
+       * simply is not there any more, and leaving him staring at a frozen
+       * screen would be the one thing Yuzu never does: he always finds out.
+       *
+       * Every sixth pass, not every one. The cycle underneath needs checking
+       * every second and a half; a room being closed is rare enough that ten
+       * seconds late costs nobody anything, and it keeps the query off the wire.
+       */
+      if (++ticks % 6 === 0) {
+        const { count } = await sb.from("rooms")
+          .select("id", { count: "exact", head: true }).eq("id", roomId);
+        if (stop) return;
+        if (count === 0) { router.replace("/room?closed=1"); return; }
+      }
+
       const { data } = await sb.from("cycles").select("*").eq("room_id", roomId)
         .is("closed_at", null).order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (stop) return;
@@ -243,7 +275,7 @@ export default function Room() {
     document.addEventListener("visibilitychange", sync);
     void sync();
     return () => { stop = true; clearInterval(id); document.removeEventListener("visibilitychange", sync); };
-  }, [sb, roomId]);
+  }, [sb, roomId, router]);
 
   /** Tell the other phone something happened. */
   const say = useCallback((event: string, payload: Record<string, unknown>) => {
@@ -311,14 +343,36 @@ export default function Room() {
    * hidden when it is suspended, so presence sat on "here" for a phone that was
    * in his pocket.
    */
+  /**
+   * Buzz his phone from outside the app, but only when he is really outside it.
+   *
+   * The decision lives here and not in his service worker. Subscribing promised
+   * the browser that every push would display something, so a worker that
+   * silently drops one breaks the promise, and Safari answers by cancelling his
+   * subscription. It has to be decided before anything is sent.
+   *
+   * The heartbeat is what makes that possible. Presence could not be trusted:
+   * it is event driven, and a suspended iPhone app never fires the event, so it
+   * claimed he was watching from inside his pocket. His page beats every five
+   * seconds while it is awake, and a suspended page cannot run a timer, so
+   * silence is the only honest signal there is.
+   */
   const pushPartner = useCallback(async (title: string, body: string, vibrate: number[], tag: string) => {
     if (!roomId) return;
+    if (Date.now() - partnerSeenRef.current < 15_000) {
+      setReach({ at: Date.now(), state: "watching" });   // he is looking right now
+      return;
+    }
     try {
-      await fetch("/api/push", {
+      const res = await fetch("/api/push", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ roomId, title, body, vibrate, tag }),
       });
-    } catch { /* the in-app buzz still runs; push is the bonus */ }
+      const out = await res.json().catch(() => ({}));
+      setReach({ at: Date.now(), state: out?.sent > 0 ? "buzzed" : "unreachable" });
+    } catch {
+      setReach({ at: Date.now(), state: "unreachable" });
+    }
   }, [roomId]);
 
   const turnOnPush = useCallback(async () => {
@@ -516,6 +570,8 @@ export default function Room() {
       won={won}
       partnerAt={partnerAt}
       leftCount={leftCount}
+      reach={reach?.state ?? null}
+      onRooms={() => router.push("/room")}
       onSend={send}
       onVerdict={verdict}
       onStrike={strike}

@@ -28,6 +28,46 @@ export function pushState(): PushState {
 }
 
 /**
+ * Quietly put back a subscription that has gone missing.
+ *
+ * Safari revokes a push subscription when a push arrives and nothing is shown,
+ * and it leaves the PERMISSION granted while doing it. So his phone looked
+ * fine: permission granted, nothing to prompt him about, and the app never
+ * offered him the button again, because the button only appears when he has
+ * not been asked yet. Notifications stayed dead for good.
+ *
+ * This runs on every load. No prompt, no click needed, because permission is
+ * already his. It is only ever a repair.
+ */
+export async function ensurePush(sb: SupabaseClient, userId: string): Promise<PushState> {
+  if (pushState() !== "ready") return pushState();
+  const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  if (!key) return "unsupported";
+
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    if (await reg.pushManager.getSubscription()) return "ready";   // nothing to repair
+    return await store(sb, userId, await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(key),
+    }));
+  } catch {
+    return "ready";   // permission is still his; the in-app buzz carries on
+  }
+}
+
+/** Keep the address his push service delivers to, so the server can reach him. */
+async function store(sb: SupabaseClient, userId: string, sub: PushSubscription): Promise<PushState> {
+  const json = sub.toJSON() as { endpoint?: string; keys?: { p256dh?: string; auth?: string } };
+  if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return "unsupported";
+  await sb.from("push_subscriptions").upsert(
+    { user_id: userId, endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth },
+    { onConflict: "endpoint" },
+  );
+  return "ready";
+}
+
+/**
  * Ask, subscribe, and store. Must be called from a real click, browsers refuse
  * a permission prompt that the user did not trigger.
  */
@@ -48,13 +88,5 @@ export async function enablePush(sb: SupabaseClient, userId: string): Promise<Pu
       applicationServerKey: urlBase64ToUint8Array(key),
     }));
 
-  const json = sub.toJSON() as { endpoint?: string; keys?: { p256dh?: string; auth?: string } };
-  if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return "unsupported";
-
-  await sb.from("push_subscriptions").upsert(
-    { user_id: userId, endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth },
-    { onConflict: "endpoint" },
-  );
-
-  return "ready";
+  return store(sb, userId, sub);
 }

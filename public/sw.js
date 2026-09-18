@@ -8,7 +8,7 @@
  * What is cached: the icons and the manifest, which never change names.
  * Everything else, pages, JS, the API, Supabase, always goes to the network.
  */
-const CACHE = "yuzu-v3";
+const CACHE = "yuzu-v4";
 const SAFE = ["/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"];
 
 self.addEventListener("install", (e) => {
@@ -61,33 +61,28 @@ self.addEventListener("push", (event) => {
   try { payload = event.data ? event.data.json() : {}; } catch { /* keep defaults */ }
 
   /**
-   * Is he actually looking at it right now?
+   * ALWAYS show it. This is not a style choice.
    *
-   * The worker can see his open windows and whether any is visible, which the
-   * sender cannot. Deciding this on the sending side from presence killed every
-   * notification on iPhone, because iOS does not report a suspended home-screen
-   * app as hidden.
+   * Subscribing promised the browser userVisibleOnly: true, which means every
+   * push displays something. Deciding here whether he is watching, and dropping
+   * the ones where he is, breaks that promise. Safari answers by showing its own
+   * "updated in the background" notice and then cancelling his subscription
+   * outright, which is how notifications went from working to completely dead.
+   *
+   * Whether he is watching is decided where it can be known honestly: her phone
+   * only sends when his heartbeat has gone quiet.
    */
-  const decide = self.clients
-    .matchAll({ type: "window", includeUncontrolled: true })
-    .then((tabs) => tabs.some((t) => t.visibilityState === "visible" && t.focused));
-
   const title = payload.title || "She needs you";
-  const options = {
-    body: payload.body || "Open Yuzu.",
-    icon: "/icon-192.png",
-    badge: "/icon-192.png",
-    tag: payload.tag || "yuzu-cramp",
-    renotify: true,
-    requireInteraction: true,
-    vibrate: payload.vibrate || [300, 120, 300, 120, 300],
-    data: { url: payload.url || "/" },
-  };
   event.waitUntil(
-    decide.then((watching) => {
-      // he is looking at the screen; he felt it in the app a second ago
-      if (watching) return;
-      return self.registration.showNotification(title, options);
+    self.registration.showNotification(title, {
+      body: payload.body || "Open Yuzu.",
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      tag: payload.tag || "yuzu-cramp",
+      renotify: true,
+      requireInteraction: true,
+      vibrate: payload.vibrate || [300, 120, 300, 120, 300],
+      data: { url: payload.url || "/" },
     })
   );
 });

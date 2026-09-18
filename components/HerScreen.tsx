@@ -23,7 +23,8 @@ export const HITS = [
 
 export default function HerScreen({
   partnerName, score, needs, gifts, incoming, waiting, failed, hits, won,
-  partnerAt, leftCount, onSend, onVerdict, onStrike, onForgive, onRewrite,
+  partnerAt, leftCount, reach, onRooms,
+  onSend, onVerdict, onStrike, onForgive, onRewrite,
 }: {
   partnerName: string | null;
   score: number;
@@ -36,6 +37,8 @@ export default function HerScreen({
   won: boolean;               // everything she asked for just landed
   partnerAt: Presence;        // is he actually looking at this?
   leftCount: number;          // how many times he has wandered off this cycle
+  reach: "watching" | "buzzed" | "unreachable" | null;   // did his phone actually get it
+  onRooms: () => void;        // back out to her other rooms
   onSend: (message: string, intensity: number) => void | Promise<void>;
   onVerdict: (helped: boolean) => void;
   onStrike: (hit: typeof HITS[number]) => void;
@@ -63,6 +66,16 @@ export default function HerScreen({
 
   return (
     <main className="min-h-dvh px-4 py-5 max-w-md mx-auto flex flex-col gap-4 justify-center">
+      {/* Out to her other rooms. Hidden mid-round: walking out on a cramp she
+          has already sent would leave him buzzing with nobody to answer him. */}
+      {!sent && (
+        <button onClick={onRooms}
+          className="self-start font-round font-bold text-xs text-inkFaint
+                     underline underline-offset-4">
+          ‹ my rooms
+        </button>
+      )}
+
       {partnerName && !sent && (
         <p className="text-center text-sm text-inkSoft text-balance">
           <b className="text-ink">{partnerName}</b> joined to feel your pain
@@ -71,6 +84,21 @@ export default function HerScreen({
       )}
 
       <RoomScene score={score} gifts={gifts} angry={failed} fill />
+
+      {/*
+        Did it actually reach him?
+
+        She should never have to wonder whether his phone went off. This says so
+        outright, including the one that is nobody's fault: he never turned
+        notifications on, so with the app shut there is no way to reach him.
+      */}
+      {sent && reach && (
+        <p className="text-center font-round font-bold text-xs text-inkFaint">
+          {reach === "watching"   && `${partnerName ?? "He"} is looking at it right now.`}
+          {reach === "buzzed"     && `${partnerName ?? "His"} phone is buzzing. ✓`}
+          {reach === "unreachable" && `${partnerName ?? "He"} hasn't turned notifications on, so his phone stayed quiet.`}
+        </p>
+      )}
 
       {/* He can put the phone down. He just can't do it quietly. */}
       {sent && partnerAt !== "here" && (
