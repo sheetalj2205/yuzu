@@ -14,8 +14,17 @@ Her own intensity rating: ${intensity} out of 10.
 
 Her partner will NOT be shown her words. You are the app speaking TO HIM.
 
-IMPORTANT: her message may contain SEVERAL separate needs. Pull out every distinct one (1 to 3).
-She is not settled until every one of them is met.
+IMPORTANT: her message usually contains SEVERAL separate needs, and missing one is the worst
+thing you can do here, because she stays in pain until every one is met.
+
+Before you answer, split her sentence on every "and", every comma, and every separate
+complaint. Each distinct thing SHE MENTIONS is its own need, even when two of them could be
+soothed the same way. "I am freezing, my back is killing me and I miss you" is THREE needs,
+not two: being cold, the pain, and being alone.
+
+Never invent one. If she mentions a single thing, that is ONE need: "my stomach hurts" is one,
+not three, and padding it out makes him chase things she never asked for. Count what is in her
+sentence and return exactly that, between 1 and 3.
 
 For EACH need, write FIVE short hints addressed to him ("she", "her"), one for each of his
 five tries, getting clearer every single time. Hint 1 is almost nothing; hint 5 all but names
@@ -82,7 +91,29 @@ export function normaliseNeeds(raw: unknown): Need[] {
   return out;
 }
 
-export function normalise(raw: Record<string, unknown>, intensity: number): Translation {
+/**
+ * Merge in anything the model missed.
+ *
+ * Models under-split. Asked for every distinct need, one would routinely come
+ * back with two for a sentence that plainly held three, and she would be left
+ * with a need nobody was ever told about. The rule reader runs over her message
+ * as well, and any tag it finds that the model did not is added with the stock
+ * hints for that tag. Same cap of three.
+ */
+function withMissedNeeds(fromModel: Need[], message: string): Need[] {
+  const seen = new Set(fromModel.map(n => n.tag));
+  const merged = [...fromModel];
+  for (const guessed of sniffNeeds(message.toLowerCase())) {
+    if (merged.length >= 3) break;
+    if (seen.has(guessed.tag)) continue;
+    seen.add(guessed.tag);
+    merged.push(guessed);
+  }
+  return merged;
+}
+
+export function normalise(raw: Record<string, unknown>, intensity: number,
+                          message = ""): Translation {
   const env = String(raw.envelope ?? "swell");
   return {
     envelope: (["swell","stab","grind","throb"].includes(env) ? env : "swell") as Translation["envelope"],
@@ -90,7 +121,7 @@ export function normalise(raw: Record<string, unknown>, intensity: number): Tran
     pulse_ms:   Math.round(clamp(raw.pulse_ms, 200, 4000, 1400)),
     duration_s: Math.round(clamp(raw.duration_s, 10, 180, 70)),
     label:      String(raw.label ?? "Unnamed sensation"),
-    needs:      normaliseNeeds(raw.needs),
+    needs:      withMissedNeeds(normaliseNeeds(raw.needs), message),
   };
 }
 

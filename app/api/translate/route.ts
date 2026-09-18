@@ -52,7 +52,7 @@ type Attempt = { ok: true; value: Translation } | { ok: false; why: string };
  * and popular models return 503 "high demand" at random moments.
  * "-lite" models have no reasoning to switch off and reject thinkingConfig.
  */
-async function tryGemini(prompt: string, level: number): Promise<Attempt> {
+async function tryGemini(prompt: string, level: number, message: string): Promise<Attempt> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return { ok: false, why: "gemini not configured" };
 
@@ -87,7 +87,7 @@ async function tryGemini(prompt: string, level: number): Promise<Attempt> {
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!text) { why = `${model} → empty`; continue; }
 
-      return { ok: true, value: normalise(JSON.parse(text), level) };
+      return { ok: true, value: normalise(JSON.parse(text), level, message) };
     } catch (err) {
       why = `${model} → ${(err as Error).message}`;
     }
@@ -107,7 +107,7 @@ export async function POST(req: Request) {
   const cached = cacheGet(ck);
   if (cached) return NextResponse.json(cached);
 
-  const attempt = await tryGemini(buildPrompt(message, level), level);
+  const attempt = await tryGemini(buildPrompt(message, level), level, message);
   if (attempt.ok) {
     const value = { ...attempt.value, by: "gemini" };
     cacheSet(ck, value);

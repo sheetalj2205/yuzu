@@ -42,6 +42,7 @@ export default function Room() {
   const stopLoop = useRef<null | (() => void)>(null);
   const cycleRef = useRef<Cycle | null>(null);
   const meRef = useRef<"her" | "him" | null>(null);
+  const partnerAtRef = useRef<Presence>("gone");
   const judged = useRef<Set<string>>(new Set());   // gifts she has already answered
   const finished = useRef<Set<string>>(new Set());  // rounds she has ended herself
 
@@ -50,6 +51,7 @@ export default function Room() {
      saw a null role and the buzz loop saw the previous cycle's pattern. */
   useEffect(() => { cycleRef.current = cycle; }, [cycle]);
   useEffect(() => { meRef.current = me; }, [me]);
+  useEffect(() => { partnerAtRef.current = partnerAt; }, [partnerAt]);
 
 
   /* ---------------- join the room ---------------- */
@@ -283,9 +285,16 @@ export default function Room() {
   }, [me, cycle]);
   useEffect(() => () => stopBuzz(), []);
 
-  /** Buzz the other phone through the OS, works even with the app closed. */
+  /**
+   * Buzz the other phone through the OS.
+   *
+   * Only when they are not already looking. Presence tells us whether they have
+   * the app open, and a notification landing on someone who is staring at the
+   * screen is just noise: they already felt it, in the app, a second ago.
+   */
   const pushPartner = useCallback(async (title: string, body: string, vibrate: number[], tag: string) => {
     if (!roomId) return;
+    if (partnerAtRef.current === "here") return;
     try {
       await fetch("/api/push", {
         method: "POST", headers: { "Content-Type": "application/json" },
