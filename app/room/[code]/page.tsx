@@ -96,6 +96,9 @@ export default function Room() {
    */
   const chanRef = useRef<ReturnType<typeof sb.channel> | null>(null);
 
+  /** When his page last told us it was awake. 0 means never. */
+  const partnerSeenRef = useRef(0);
+
   useEffect(() => {
     if (!roomId || !me || !meId) return;
 
@@ -148,6 +151,17 @@ export default function Room() {
       setTimeout(() => { setBuzzing(false); setPow(null); }, 900);
     });
 
+    /**
+     * A heartbeat, because presence alone cannot tell us he walked away.
+     *
+     * Presence is event driven: it says "here" until a visibilitychange fires,
+     * and iOS never fires one for a suspended home-screen app, so his phone
+     * goes on claiming he is watching from inside his pocket. A beat he has to
+     * keep sending cannot lie that way. A suspended page stops running timers,
+     * so silence IS the signal.
+     */
+    ch.on("broadcast", { event: "watching" }, () => { partnerSeenRef.current = Date.now(); });
+
     ch.on("presence", { event: "sync" }, () => {
       const { presence, name } = readPartner(ch.presenceState(), me);
       setPartnerAt(prev => {
@@ -163,7 +177,11 @@ export default function Room() {
     });
 
     const untrack = trackVisibility(ch, { role: me, name: myName });
-    return () => { untrack(); chanRef.current = null; sb.removeChannel(ch); };
+    const beat = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void ch.send({ type: "broadcast", event: "watching", payload: {} });
+    }, 5000);
+    return () => { clearInterval(beat); untrack(); chanRef.current = null; sb.removeChannel(ch); };
   }, [sb, roomId, me, meId, myName]);
 
   /**
@@ -307,6 +325,40 @@ export default function Room() {
     if (!meId) return;
     setPush(await enablePush(sb, meId));
   }, [sb, meId]);
+
+  /**
+   * THE IPHONE BUZZ.
+   *
+   * An iPhone cannot be vibrated from a web page at all. Safari has never
+   * shipped the Vibration API, on any iOS browser, and there is no flag and no
+   * polyfill. The one thing left that actually moves the motor is a
+   * notification, so on iPhone the buzz loop IS the notification.
+   *
+   * Android buzzes every five seconds. Re-pushing that often would be abuse, so
+   * this is every twenty, under the same ten minute cap, and it stops the moment
+   * she says every need is met. He still cannot end it. Only she can.
+   *
+   * Only while he is genuinely away. A push his worker throws away is worse than
+   * none: WebKit shows its own "updated in the background" notice for a push
+   * that displays nothing, and drops the subscription if it keeps happening.
+   */
+  useEffect(() => {
+    if (me !== "her" || !cycleId) return;
+    const started = Date.now();
+    const id = setInterval(() => {
+      if (Date.now() - started > 10 * 60_000) return;
+      if (unmet(cycleRef.current?.needs ?? []).length === 0) return;
+      // his page beats every 5s while it is awake, so a 15s gap means gone
+      if (Date.now() - partnerSeenRef.current < 15_000) return;
+      void pushPartner(
+        "She's still hurting",
+        "You haven't worked it out yet.",
+        [400, 150, 400, 150, 400],
+        "yuzu-cramp",
+      );
+    }, 20_000);
+    return () => clearInterval(id);
+  }, [me, cycleId, pushPartner]);
 
   /* ---------------- she sends ---------------- */
   const send = useCallback(async (message: string, intensity: number) => {
