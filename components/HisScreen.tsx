@@ -4,7 +4,7 @@ import { ITEMS, FAVE_EMOJI } from "@/lib/items";
 import { MAX_TRIES } from "@/lib/types";
 import { arrange, loadPrefs, moveTo, savePrefs, type DrawerPrefs } from "@/lib/drawer";
 import type { Item } from "@/lib/types";
-import type { PushState } from "@/lib/push";
+import { testPush, workerVersion, type PushState } from "@/lib/push";
 
 /**
  * HIS PHONE. Rule: he sees a hint and a drawer. Never her words -
@@ -23,7 +23,7 @@ export default function HisScreen({
   buzzing: boolean;
   custom: Item[];
   push: PushState;
-  pow: string | null;          // "POW!", she is hitting back
+  pow: string | null;          // the emoji she is hitting him with
   love: "heart" | "kiss" | null;   // she said it helped / she said that was all of it
   needCount: number;           // how many things she needs in total
   onEnablePush: () => void;
@@ -31,6 +31,19 @@ export default function HisScreen({
   onAddFavourite: (emoji: string, name: string) => void;
   onRemoveFavourite: (id: string) => void;
 }) {
+  /* Notifications, checkable without her having to be in pain first. */
+  const [swv, setSwv] = useState("");
+  const [test, setTest] = useState<{ ok: boolean; detail: string } | null>(null);
+  const [testing, setTesting] = useState(false);
+
+  useEffect(() => { void workerVersion().then(setSwv); }, []);
+
+  const runTest = async () => {
+    setTesting(true);
+    setTest(await testPush());
+    setTesting(false);
+  };
+
   const [adding, setAdding] = useState(false);
   const [emoji, setEmoji] = useState(FAVE_EMOJI[0]);
   const [name, setName] = useState("");
@@ -146,7 +159,7 @@ export default function HisScreen({
         <>
           <div aria-hidden className="pointer-events-none fixed inset-0 z-[70] burst" />
           <div aria-hidden className="pointer-events-none fixed inset-0 z-[71] grid place-items-center">
-            <span className="pow-text">{pow}</span>
+            <span className="pow-emoji">{pow}</span>
           </div>
         </>
       )}
@@ -172,6 +185,30 @@ export default function HisScreen({
         <p className="text-center text-inkFaint text-xs">
           Notifications are blocked, so she can only reach you while this is open.
         </p>
+      )}
+
+      {/*
+        Prove it, rather than wait for her to be in pain and find out then.
+
+        This goes down the exact path her cramp takes. If it arrives and hers
+        does not, delivery is not the problem. The worker's own name is here
+        too, because iOS keeps an installed app's old service worker alive long
+        after a deploy, and a stale push handler looks like nothing at all: the
+        server sends, Apple accepts, the phone stays dark.
+      */}
+      {push === "ready" && (
+        <div className="text-center">
+          <button onClick={runTest} disabled={testing}
+            className="text-inkFaint text-xs underline underline-offset-4 disabled:opacity-50">
+            {testing ? "Sending…" : "Test my notifications"}
+          </button>
+          {test && (
+            <p className={`text-xs mt-1 ${test.ok ? "text-calm" : "text-pain"}`}>
+              {test.detail}
+            </p>
+          )}
+          {swv && <p className="text-inkFaint text-[10px] mt-1">worker {swv}</p>}
+        </div>
       )}
 
       {revealedMessage ? (

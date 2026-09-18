@@ -153,8 +153,10 @@ export default function Room() {
     ch.on("broadcast", { event: "strike" }, ({ payload }) => {
       if (me !== "him") return;
       const word = String(payload?.word ?? "POW!");
+      // the word still picks the sound, but what he SEES is the thing she hit
+      // him with: a fist reads as a fist in any language, "BONK" does not
       buzzStrike((payload?.pattern as number[]) ?? [320, 70, 320], word);
-      setPow(word);
+      setPow(String(payload?.emoji ?? "👊"));
       setBuzzing(true);
       setTimeout(() => { setBuzzing(false); setPow(null); }, 900);
     });
@@ -528,8 +530,8 @@ export default function Room() {
     await sb.from("gifts").insert({
       cycle_id: cycle.id, emoji: hit.emoji, name: hit.word, tag: "strike",
     });
-    say("strike", { word: hit.word, pattern: hit.pattern });
-    void pushPartner(hit.word, "She's had enough.", hit.pattern, "yuzu-strike");
+    say("strike", { word: hit.word, emoji: hit.emoji, pattern: hit.pattern });
+    void pushPartner(`${hit.emoji} ${hit.word}`, "She's had enough.", hit.pattern, "yuzu-strike");
   }, [sb, cycle, pushPartner, say]);
 
   /** Bin the open round so she can write a new one. */

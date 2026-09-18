@@ -99,3 +99,18 @@ self.addEventListener("notificationclick", (event) => {
     })
   );
 });
+
+/**
+ * Which worker is actually running?
+ *
+ * iOS keeps an installed app's old service worker alive for a long time, and a
+ * push handler from three deploys ago looks identical from the outside: the
+ * server says it sent, Apple says 201, and nothing appears on the phone. This
+ * lets the page ask the worker itself, so that question stops being guesswork.
+ */
+self.addEventListener("message", (event) => {
+  if (event.data !== "version") return;
+  const reply = { version: CACHE };
+  if (event.ports && event.ports[0]) event.ports[0].postMessage(reply);
+  else if (event.source) event.source.postMessage(reply);
+});

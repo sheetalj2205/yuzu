@@ -13,8 +13,8 @@ export const runtime = "nodejs";   // web-push needs node crypto
  * caller really is in the room they are trying to buzz.
  */
 export async function POST(req: Request) {
-  const { roomId, title, body, vibrate, tag } = await req.json();
-  if (!roomId) return NextResponse.json({ error: "roomId required" }, { status: 400 });
+  const { roomId, title, body, vibrate, tag, self: toSelf } = await req.json();
+  if (!roomId && !toSelf) return NextResponse.json({ error: "roomId required" }, { status: 400 });
 
   const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
@@ -31,16 +31,24 @@ export async function POST(req: Request) {
     auth: { persistSession: false },
   });
 
-  const { data: room } = await admin
-    .from("rooms").select("her_id, him_id").eq("id", roomId).maybeSingle();
-  if (!room) return NextResponse.json({ error: "no such room" }, { status: 404 });
+  /**
+   * A test push goes to the person asking for it. Everything after this point
+   * is identical to a real one, so if the test arrives and a real cramp does
+   * not, the fault is upstream of here and not in delivery.
+   */
+  let target: string | null = user.id;
 
-  let target: string | null = null;
-  if (room.her_id === user.id) target = room.him_id;
-  else if (room.him_id === user.id) target = room.her_id;
-  else return NextResponse.json({ error: "not your room" }, { status: 403 });
+  if (!toSelf) {
+    const { data: room } = await admin
+      .from("rooms").select("her_id, him_id").eq("id", roomId).maybeSingle();
+    if (!room) return NextResponse.json({ error: "no such room" }, { status: 404 });
 
-  if (!target) return NextResponse.json({ sent: 0, reason: "nobody to send to" });
+    if (room.her_id === user.id) target = room.him_id;
+    else if (room.him_id === user.id) target = room.her_id;
+    else return NextResponse.json({ error: "not your room" }, { status: 403 });
+
+    if (!target) return NextResponse.json({ sent: 0, reason: "nobody to send to" });
+  }
 
   const { data: subs } = await admin
     .from("push_subscriptions").select("*").eq("user_id", target);
@@ -72,5 +80,8 @@ export async function POST(req: Request) {
   }));
 
   if (dead.length) await admin.from("push_subscriptions").delete().in("endpoint", dead);
-  return NextResponse.json({ sent, pruned: dead.length });
+  // `failed` is the number Apple or Google rejected without saying the
+  // subscription is gone, which is a different problem from having none
+  return NextResponse.json({ sent, pruned: dead.length, had: subs.length,
+                             failed: subs.length - sent - dead.length });
 }
