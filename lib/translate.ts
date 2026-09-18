@@ -1,5 +1,6 @@
 import type { Need, Tag, Translation } from "./types";
 import { MAX_TRIES, TAGS } from "./types";
+import { ITEMS } from "./items";
 
 /* ------------------------------------------------------------------ *
  * THE PROMPT. This is the whole AI product, read it before changing. *
@@ -7,12 +8,20 @@ import { MAX_TRIES, TAGS } from "./types";
  * something she still hasn't ticked off.                              *
  * ------------------------------------------------------------------ */
 export function buildPrompt(message: string, intensity: number) {
+  const drawer = ITEMS.filter(i => !i.bad)
+    .map(i => `- ${i.name} (helps with: ${i.tag})`).join("\n");
+
   return `Convert a description of menstrual pain into a phone vibration pattern, and work out everything she needs.
 
 Her words: "${message}"
 Her own intensity rating: ${intensity} out of 10.
 
 Her partner will NOT be shown her words. You are the app speaking TO HIM.
+
+He answers by picking ONE thing out of this drawer:
+${drawer}
+Your hints exist to walk him to the right shelf of that drawer. A hint that could
+equally point at every shelf is a wasted hint.
 
 IMPORTANT: her message usually contains SEVERAL separate needs, and missing one is the worst
 thing you can do here, because she stays in pain until every one is met.
@@ -26,31 +35,51 @@ Never invent one. If she mentions a single thing, that is ONE need: "my stomach 
 not three, and padding it out makes him chase things she never asked for. Count what is in her
 sentence and return exactly that, between 1 and 3.
 
-For EACH need, write FIVE short hints addressed to him ("she", "her"), one for each of his
-five tries, getting clearer every single time. Hint 1 is almost nothing; hint 5 all but names
-what she wants without naming the object itself. Never quote or closely paraphrase her
-sentence. The hints for a need must be about THAT need only.
+THE HINTS. This is the part people judge. For EACH need write FIVE, addressed to him
+("she", "her"), and each one has a DIFFERENT job. Never restate the rung above it in new
+words: every rung must hand him a fact the rung before it did not.
+
+  1. WHERE or WHAT. A full sentence naming the part of her that is wrong, or the state
+     she is in. Nothing about the cure yet. "Her lower back has seized up." not "Her back."
+  2. HOW IT FEELS. Sharp, heavy, cold, hollow, worn out. Still nothing about the cure.
+  3. RULE SOMETHING OUT. Take one thing that IS in the drawer above, describe it in your
+     own words, and say it will not work for this need, so he stops wasting a guess on it.
+     It must be a drawer thing. Ruling out an ice pack or a doctor helps him with nothing.
+  4. THE KIND OF HELP. What would actually shift it: heat, blocking the pain, covering her,
+     being with her, taking something off her plate.
+  5. ALL BUT THE NAME. Describe the thing itself, its shape, where on her it goes, what he
+     does with it, so a reader of only this line could pick the right shelf first go.
+     Do not print the drawer's own wording for it.
+
+Rules for all five: max 10 words each, and every one a whole sentence that makes sense on
+its own, because he is shown them one at a time and never sees the others. Write the way a
+worried boyfriend texts: no clinical or technical wording, nothing like "lumbar region",
+"thermal", "core temperature" or "applied directly". Say back, tummy, hot, cold, tired.
+No quoting or paraphrasing her sentence. The five hints of a need are about THAT need only.
+If two of her needs feel similar, make their hints pull in clearly different directions.
 
 Reply with ONLY this JSON, no other text:
 {"envelope":"swell"|"stab"|"grind"|"throb","peak":0-1,"pulse_ms":200-4000,
  "duration_s":10-180,"label":"3-5 word name for this sensation",
  "needs":[{"tag":"heat"|"meds"|"rest"|"company"|"warmth","label":"2-4 words, her side",
-           "hints":["barely anything, max 7 words","a little clearer","clearer still",
-           "nearly says it","all but names it, max 10 words"]}]}
+           "hints":["rung 1","rung 2","rung 3","rung 4","rung 5"]}]}
 
 Sharp or stabbing -> stab with short pulse_ms. Building or rolling -> swell.
 Constant heavy ache -> grind. Pulsing -> throb.
 Tags: cold or cramping -> heat. Very sharp pain -> meds. Exhausted, overwhelmed, can't
 sleep -> rest. Lonely, low, missing him -> company. Wants to be held or covered -> warmth.
 
-Example, "I am freezing, my back is killing me and I miss you" has THREE needs, and the
-heat one would read:
-{"tag":"heat","label":"something warm","hints":[
-  "Something is cold.",
-  "Cold from the inside out.",
-  "A drink will not reach it.",
-  "She needs heat held against her.",
-  "Steady warmth, pressed low on her back."]}`;
+GOOD, five rungs that each move him along:
+{"tag":"meds","label":"the stabbing","hints":[
+  "It is her lower back, on the left.",
+  "It spikes, drops away, then spikes again.",
+  "Holding something hot there will not touch it.",
+  "This one has to be blocked, not soothed.",
+  "The little box in the bathroom, with water."]}
+
+BAD, five ways of saying one thing. Never do this:
+["She is in pain.","It really hurts.","The pain is bad.","She is hurting a lot.",
+ "She needs the pain to stop."]`;
 }
 
 /* ---------------------------- validation ---------------------------- */
@@ -59,19 +88,88 @@ const clamp = (n: unknown, lo: number, hi: number, fb: number) => {
   return Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : fb;
 };
 
-/** Stock hints per tag, fills in when the model gives a need no hints of its own. */
+/**
+ * Stock hints per tag, used when the model gives a need no hints of its own and
+ * by the offline rules. Same five rungs the prompt asks for: where, how it
+ * feels, what will NOT work, the kind of help, then all but the item's name.
+ * "heat" and "warmth" are deliberately pulled apart, one is a hot thing pressed
+ * on one spot, the other is something soft laid over all of her.
+ */
 export const HINT_BANK: Record<Tag, string[]> = {
-  heat:    ["Something is cold.", "Cold from the inside out.", "A drink will not reach it.",
-            "She needs heat held against her.", "Steady warmth, pressed low on her back."],
-  meds:    ["This one is sharp.", "Comfort will not touch it.", "Warmth is not going to be enough.",
-            "Something has to actually dull it.", "She needs the pain blocked, not soothed."],
-  rest:    ["She is running on empty.", "It is not only her body.", "She has nothing left to give today.",
-            "Something on her list has to go.", "Take tomorrow off her hands."],
-  company: ["She is on her own.", "The room is too quiet.", "Being alone is making it worse.",
-            "A parcel will not fix this one.", "She wants your voice, right now."],
-  warmth:  ["She has curled up small.", "She wants to be covered.", "Something with weight to it.",
-            "Not a drink, something over her.", "Wrap her up and leave it there."],
+  heat: [
+    "It is low down, across her stomach.",
+    "Cold and tight, like a fist closing.",
+    "Company will not loosen something this physical.",
+    "Only real heat, right on the spot, helps.",
+    "Something hot she can hold against her belly.",
+  ],
+  meds: [
+    "One part of her is sharp, not achy.",
+    "It spikes, fades, then spikes again.",
+    "Warmth will take the edge off nothing here.",
+    "This has to be blocked, not soothed.",
+    "The little box in the bathroom, with water.",
+  ],
+  rest: [
+    "Her body is not the only worn-out part.",
+    "She is already dreading how tomorrow looks.",
+    "Nothing you can wrap or heat fixes this.",
+    "Something in her day has to disappear.",
+    "Clear her morning for her, before she wakes.",
+  ],
+  company: [
+    "The room around her is very quiet.",
+    "She is getting through this on her own.",
+    "No hot or soft object reaches this one.",
+    "She wants a person, not a parcel.",
+    "Your arms, your voice, or something with a heartbeat.",
+  ],
+  warmth: [
+    "She has curled up as small as possible.",
+    "Not one sore spot, all of her is cold.",
+    "Heat on a single place misses most of her.",
+    "She wants covering, and wants it to stay.",
+    "Pull something soft and heavy over her.",
+  ],
 };
+
+/** Loose word overlap, to catch two hints that say the same thing twice. */
+function tooAlike(a: string, b: string): boolean {
+  const words = (t: string) =>
+    new Set(t.toLowerCase().replace(/[^a-z\s]/g, "").split(/\s+/).filter(w => w.length > 3));
+  const A = words(a), B = words(b);
+  if (!A.size || !B.size) return false;
+  let same = 0;
+  for (const w of A) if (B.has(w)) same++;
+  return same / Math.min(A.size, B.size) >= 0.6;
+}
+
+/**
+ * Take the model's five rungs, but only the ones that actually climb.
+ *
+ * The ladder is the product: rung 3 has to tell him something rung 2 did not.
+ * A model that repeats itself hands him three goes at the same vague sentence,
+ * so any rung that only rewords the one above it is dropped, and the stock
+ * ladder for that tag tops the need back up to five.
+ */
+function ladder(raw: unknown, tag: Tag): string[] {
+  const bank = HINT_BANK[tag];
+  const kept: string[] = [];
+  if (Array.isArray(raw)) {
+    for (const h of raw) {
+      const line = String(h ?? "").trim();
+      if (!line) continue;
+      if (kept.some(k => tooAlike(k, line))) continue;
+      kept.push(line);
+      if (kept.length === 5) break;
+    }
+  }
+  for (const h of bank) {
+    if (kept.length >= 5) break;
+    if (!kept.some(k => tooAlike(k, h))) kept.push(h);
+  }
+  return kept.length ? kept : bank;
+}
 
 export function normaliseNeeds(raw: unknown): Need[] {
   const out: Need[] = [];
@@ -81,10 +179,7 @@ export function normaliseNeeds(raw: unknown): Need[] {
       const r = n as Record<string, unknown>;
       let tag = String(r.tag ?? "").toLowerCase() as Tag;
       if (!TAGS.includes(tag)) tag = "heat";
-      const hints = Array.isArray(r.hints) && r.hints.length
-        ? r.hints.slice(0, 5).map(String)
-        : HINT_BANK[tag];
-      out.push({ tag, label: String(r.label ?? tag), hints, done: false });
+      out.push({ tag, label: String(r.label ?? tag), hints: ladder(r.hints, tag), done: false });
     }
   }
   if (!out.length) out.push({ tag: "heat", label: "something warm", hints: HINT_BANK.heat, done: false });
