@@ -1,5 +1,5 @@
-export type Tag = "heat" | "meds" | "rest" | "company" | "warmth";
-export const TAGS: Tag[] = ["heat", "meds", "rest", "company", "warmth"];
+export type Tag = "heat" | "meds" | "rest" | "company" | "warmth" | "food";
+export const TAGS: Tag[] = ["heat", "meds", "rest", "company", "warmth", "food"];
 
 /** One thing she needs. Carries its OWN hints, so he is always nudged
  *  toward something still unmet, never toward a need she already ticked. */

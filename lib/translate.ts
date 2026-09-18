@@ -52,6 +52,8 @@ marked right:
   meds    - sharp, stabbing, pounding pain that has to be blocked
   rest    - worn out, cannot sleep, dreading tomorrow, too much on tomorrow
   company - lonely, low, missing him, wants him there
+  food    - hungry, has not eaten, craving something. Feeling sick or
+            nauseous is NOT hunger, that is meds or rest.
 
 A complaint about a PART OF HER BODY is never company. "Everything aches", "my
 back", "my head" are things happening in her body, so they take heat, warmth or
@@ -64,26 +66,42 @@ Per need, exactly ${MAX_TRIES} hints, spoken to him about her ("she", "her"). On
 guess he has. He is shown ONE at a time and never sees the others, so each must
 stand alone as a whole sentence.
 
-Each has its own job. Never reword the one above it. Each must hand him a fact
+THESE ARE CLUES, NOT ANSWERS. This is a game. If your hint states the problem
+outright, or tells him which thing to tap, there is nothing left for him to do
+and the game is over before it starts. Make him work it out. He should finish
+each hint thinking "ah, of course", never "right, it says here what to press".
+
+Each has its own job. Never reword the one above it. Each must hand him something
 the one before it did not:
 
-  1. WHERE IT IS. Which part of her, and what it feels like there. Nothing yet
-     about what would help. "Her lower back has seized up and it burns."
-  2. CROSS ONE OFF. Name a thing that IS in the drawer above, in your own words,
-     and say it will not work for this need, so he stops considering it. It must
+  1. A PICTURE OF IT. Show how it feels through what it is doing to her, not by
+     naming it. Never use her own word for the problem.
+     NOT "she is hungry" but "her stomach has started making the decisions".
+     NOT "she is lonely" but "the room is louder empty than it ever was full".
+  2. CROSS ONE OFF. Take a thing that IS in the drawer above, describe it without
+     naming it, and say it will not work here, so he stops considering it. It must
      be a drawer thing: ruling out an ice pack or a doctor saves him nothing.
      Cross off a shelf that is WRONG for her. Never one that would fix this need,
      and never one that would fix ANOTHER of her needs in this same message.
      Telling him a hot water bottle is useless while she is also freezing costs
      him a guess instead of saving one, and "her playlist will not keep her
      company" talks him out of an answer that was about to be marked right.
-  3. ALL BUT THE NAME. The thing itself: what it is, where on her it goes, what he
-     does with it. Somebody reading only this line should pick right first go.
+  3. THE THING, STILL UNNAMED. Describe what would fix it by what it DOES: its
+     shape, its weight, where it ends up, how long it lasts, what it is made of.
+     Never name it. Never tell him to do anything with it.
+     NOT "press a hot water bottle on her tummy"
+     BUT "it holds its heat long after a mug has gone cold".
 
-By hint ${MAX_TRIES} he must be able to get it. Holding detail back to seem clever
-just means she stays in pain.
+By hint ${MAX_TRIES} he must be able to SOLVE it. Clever and unsolvable is worse
+than plain: she is still in pain at the end of it.
 
 Rules for every hint:
+  - He is the reader. Call him "you", never "he" or "his".
+  - NEVER give him an order. No "send", "get", "give", "press", "fill", "put",
+    "call", "clear", "order", "make", "wrap", "lay". He is guessing, not
+    following instructions. Write about her and about the thing, not about him.
+  - NEVER print the drawer's own words for an item, or any obvious synonym of
+    them. He has the drawer in front of him; naming the tile ends the round.
   - 10 words maximum.
   - Everyday English, the way a worried boyfriend texts. Say tummy, back, hot,
     cold, tired, worn out. Never "core temperature", "thermal", "lumbar",
@@ -106,25 +124,28 @@ peak 0-1, pulse_ms 200-4000, duration_s 10-180, label 3-5 words for the sensatio
 "I just want to be held"  ->  ONE complaint, ONE need:
 complaints: ["I just want to be held"]
 needs: [{"tag":"company","label":"to be held","hints":[
-  "She is on her own and the quiet aches.",
-  "Her playlist would only fill the silence.",
-  "Get your arms around her and stay there."]}]
+  "The room is louder empty than it ever was.",
+  "Music would only fill the silence, not the gap.",
+  "Whatever reaches her has to have a heartbeat."]}]
 
 "I am freezing and my back is killing me"  ->  TWO complaints. Notice that
 neither rung 3 crosses off the thing the OTHER need wants:
 complaints: ["I am freezing", "my back is killing me"]
 needs: [
  {"tag":"warmth","label":"the cold","hints":[
-  "She has curled up small and cannot get warm.",
-  "A cup of tea warms her for a minute.",
-  "Lay something soft and heavy over all of her."]},
+  "She has folded herself as small as she goes.",
+  "One warm spot leaves the rest of her cold.",
+  "Something with weight, that covers her and stays."]},
  {"tag":"meds","label":"her back","hints":[
-  "Low in her back, spiking then dropping away.",
-  "A long hug cannot reach in that far.",
-  "The little box in the bathroom, with water."]}]
+  "Something low in her back keeps catching, then letting go.",
+  "No arms are long enough to reach in there.",
+  "Small, swallowed, and it wants a glass of water."]}]
 
 NEVER do this, three ways of saying one thing:
-["She is in pain.","It really hurts.","She needs the pain to stop."]`;
+["She is in pain.","It really hurts.","She needs the pain to stop."]
+
+AND NEVER THIS, the answer read out loud:
+["Her tummy is cramping.","A hug will not help.","Press a hot water bottle on her."]`;
 
 /** Her turn. Only her words, kept apart from the rules. */
 export function userTurn(message: string, intensity: number) {
@@ -138,37 +159,43 @@ const clamp = (n: unknown, lo: number, hi: number, fb: number) => {
 };
 
 /**
- * Stock hints per tag, used when the model gives a need no hints of its own and
- * by the offline rules. One per guess he has, same three jobs the prompt asks
- * for: where it is, one shelf crossed off, then the thing in all but its name.
+ * Stock hints per tag: what he sees when the model gives a need no hints of its
+ * own, and what the offline rules run on. One per guess he has, and written to
+ * the same rule as the prompt, they are CLUES. None of them names a drawer item
+ * or tells him to do anything, because the guessing is the game.
  * "heat" and "warmth" are deliberately pulled apart, one is a hot thing pressed
- * on one spot, the other is something soft laid over all of her.
+ * on one spot, the other is something laid over all of her.
  */
 export const HINT_BANK: Record<Tag, string[]> = {
   heat: [
-    "Her lower tummy is cold and gripping tight.",
-    "A long hug will not reach in that far.",
-    "Something hot, held right on her belly.",
-  ],
-  meds: [
-    "One part of her is sharp, spiking then fading.",
-    "Warmth will take the edge off nothing here.",
-    "The little box in the bathroom, with water.",
-  ],
-  rest: [
-    "She is completely drained and dreading tomorrow.",
-    "Nothing you can wrap or heat fixes this.",
-    "Clear her morning for her, before she wakes.",
-  ],
-  company: [
-    "She is on her own and the quiet aches.",
-    "No hot or soft thing reaches this one.",
-    "Your arms, your voice, or something with a heartbeat.",
+    "Something low down in her is winding tighter.",
+    "Kind words have never once loosened a knot.",
+    "It holds its heat long after a mug goes cold.",
   ],
   warmth: [
-    "She has curled up small and cannot get warm.",
-    "Heat on one spot misses most of her.",
-    "Pull something soft and heavy over her.",
+    "She has folded herself as small as she goes.",
+    "One warm spot leaves the rest of her cold.",
+    "Something with weight, that covers her and stays.",
+  ],
+  meds: [
+    "Something in her keeps catching, then letting go.",
+    "No amount of warmth dulls an edge like that.",
+    "Small, swallowed, and it wants a glass of water.",
+  ],
+  rest: [
+    "She is running on nothing and tomorrow is already heavy.",
+    "Nothing you could wrap around her will lift it.",
+    "Not a thing to send. A morning to take away.",
+  ],
+  company: [
+    "The room is louder empty than it ever was full.",
+    "No parcel has ever fixed this one.",
+    "Whatever reaches her has to have a heartbeat.",
+  ],
+  food: [
+    "Her stomach has started making the decisions.",
+    "Warmth will not fill the hole she means.",
+    "It turns up at her door in a bag.",
   ],
 };
 
@@ -229,43 +256,84 @@ export function normaliseNeeds(raw: unknown): Need[] {
  * Words that give away which drawer item a hint is talking about, so a rung
  * that crosses one off can be checked against what she actually needs.
  */
+/**
+ * Safe cross-offs, one per shelf, used when the model rules out something she
+ * actually needs. Phrased as clues like everything else: they say what will not
+ * work without naming the tile that does it.
+ */
 const RULE_OUT: Record<Tag, string> = {
-  heat:    "Something hot on one spot is not it.",
-  warmth:  "Covering her up will not fix this.",
-  meds:    "A painkiller will not touch this one.",
-  rest:    "Clearing her diary does nothing right now.",
-  company: "Just being there will not be enough.",
+  heat:    "Heat on one small spot is not it.",
+  warmth:  "Covering her over will not reach this.",
+  meds:    "Blocking the pain would miss the point here.",
+  rest:    "An empty morning would not change this.",
+  company: "Company alone is not going to fix it.",
+  food:    "She is not going to eat her way out.",
 };
 
 const SOUNDS_LIKE: Record<Tag, RegExp> = {
-  heat:    /\bhot water\b|\brubber pouch\b|\bbottle\b|\btea\b|\bhot drink\b|\bkettle\b/i,
+  heat:    /\bhot water\b|\brubber pouch\b|\bbottle\b|\btea\b|\bhot drink\b|\bkettle\b|\bmug\b/i,
   warmth:  /\bblanket\b|\bduvet\b|\bquilt\b|\bfleece\b|\bcover(ing|ed)?\b|\bwrap\b/i,
-  meds:    /\bpainkiller|\bpill|\btablet|\bmedicine\b|\bibuprofen\b/i,
+  meds:    /\bpainkiller|\bpill|\btablet|\bmedicine\b|\bibuprofen\b|\bswallow/i,
   rest:    /\bcancel|\bmorning off\b|\bher day\b|\bschedule\b|\bdiary\b/i,
-  company: /\bhug\b|\bkiss\b|\bplaylist\b|\bmusic\b|\bcat\b|\bcall\b|\byour voice\b/i,
+  company: /\bhug\b|\bkiss\b|\bplaylist\b|\bmusic\b|\bsong|\btune|\bcat\b|\bcall\b|\bvoice\b|\bheartbeat\b|\bpurr/i,
+  food:    /\bfood\b|\beat\b|\bmeal\b|\bhungry\b|\btakeaway\b|\bnoodle|\bdeliver/i,
 };
 
 /**
- * Throw away a rung that crosses off something she actually needs.
- *
- * Rung 3 is meant to save him a guess by ruling one shelf out. Told that a hot
- * water bottle is useless while she is ALSO freezing, it costs him a guess
- * instead, and it is the one hint he is most likely to believe. The prompt says
- * not to; this is what happens when it does it anyway.
+ * The tiles themselves, by name. A far tighter list than SOUNDS_LIKE, because
+ * the last rung is SUPPOSED to point at its own shelf, just never to say the
+ * words printed on the tile he is looking at.
  */
-function withoutMisleadingRungs(needs: Need[]): Need[] {
+const TILE_NAMES: Record<Tag, RegExp> = {
+  heat:    /\bhot water bottle\b|\brubber pouch\b|\bmake her tea\b|\bcup of tea\b/i,
+  warmth:  /\bblanket\b|\bduvet\b|\bquilt\b/i,
+  meds:    /\bpainkiller|\bpills?\b|\btablets?\b/i,
+  rest:    /\bcancel\b|\bher 9 ?am\b/i,
+  company: /\bplaylist\b|\bcall in the cat\b|\blong hug\b|\bkiss goodnight\b/i,
+  food:    /\border her food\b|\btakeaway\b/i,
+};
+
+/**
+ * An order, not a clue. "Press a hot water bottle on her tummy" is the answer
+ * read out, and it ends the round the moment he reads it.
+ */
+const AN_ORDER = /^\s*(send|get|give|press|fill|put|call|clear|order|make|wrap|lay|grab|bring|take|buy|hold|pour|boil|spread|throw|let)\b/i;
+
+/**
+ * Keep every rung a clue.
+ *
+ * Three things can ruin a hint, and the prompt asks for none of them, so this is
+ * what happens when it does them anyway:
+ *
+ *  - the middle rung crosses off a shelf she NEEDS. It is meant to save him a
+ *    guess; ruling out an answer about to be marked right costs him one instead.
+ *    Held to a stricter rule than the others: it must name no shelf she needs,
+ *    not even this need's own.
+ *  - the last rung names the tile outright. He has the drawer in front of him,
+ *    so that is not a hint, it is the answer.
+ *  - any rung tells him what to do. Then there is no guessing left, and the
+ *    guessing is the game.
+ *
+ * A bad rung is swapped for a safe one at the same height, never dropped.
+ * Dropping it shortened the ladder, and a short ladder spread over his three
+ * guesses showed him the same sentence twice.
+ */
+function asClues(needs: Need[]): Need[] {
   const wanted = new Set(needs.map(n => n.tag));
+  const CROSS_OFF = 1;
+  const LAST = MAX_TRIES - 1;
 
   /**
-   * The middle rung is the one that crosses a shelf off, and it is held to a
-   * stricter rule than the others: it must not name ANY shelf she needs, not
-   * even this need's own. "Your playlist will not keep her company" talks him
-   * out of an answer that was about to be marked right.
-   * The last rung is the opposite job, so naming its own shelf is the point.
+   * A cross-off she can afford, picked from the shelves she has NOT asked for.
+   * No fixed line can be safe on its own: "no arms are long enough to reach in
+   * there" is a good clue for a cramp and a terrible one the moment she is
+   * lonely too.
    */
-  const CROSS_OFF = 1;
+  const spare = TAGS.find(t => !wanted.has(t));
 
-  const misleads = (hint: string, own: Tag, at: number) => {
+  const tooDirect = (hint: string, own: Tag, at: number) => {
+    if (AN_ORDER.test(hint)) return true;
+    if (at === LAST) return TILE_NAMES[own].test(hint);    // names its own tile
     for (const tag of wanted) {
       if (tag === own && at !== CROSS_OFF) continue;
       if (SOUNDS_LIKE[tag].test(hint)) return true;
@@ -273,23 +341,15 @@ function withoutMisleadingRungs(needs: Need[]): Need[] {
     return false;
   };
 
-  /**
-   * A replacement cross-off, worked out against what she actually needs.
-   *
-   * The stock ladder cannot be safe on its own: "a long hug will not reach in
-   * that far" is a good line for a cramp and a terrible one the moment she is
-   * lonely too. So the shelf to rule out is chosen here, from the ones she has
-   * not asked for, where crossing it off can only ever save him a guess.
-   */
-  const spare = TAGS.find(t => !wanted.has(t));
-
   return needs.map(need => {
     const bank = HINT_BANK[need.tag];
-    // Swapped for a safe rung at the same height, never dropped. Dropping it
-    // shortened the ladder, and a short ladder spread over his three guesses
-    // showed him the same sentence twice.
     const hints = need.hints.map((h, i) => {
-      if (!misleads(h, need.tag, i)) return h;
+      // A stock cross-off cannot know what else she asked for, so it is always
+      // re-picked against her real needs. "Kind words have never once loosened
+      // a knot" is a fine clue for a cramp and rules out an answer the moment
+      // she is lonely too, and no word in it is one a pattern could catch.
+      if (i === CROSS_OFF && spare && h === bank[CROSS_OFF]) return RULE_OUT[spare];
+      if (!tooDirect(h, need.tag, i)) return h;
       if (i === CROSS_OFF && spare) return RULE_OUT[spare];
       return bank[i] ?? bank[bank.length - 1];
     });
@@ -305,7 +365,7 @@ export function normalise(raw: Record<string, unknown>, intensity: number): Tran
     pulse_ms:   Math.round(clamp(raw.pulse_ms, 200, 4000, 1400)),
     duration_s: Math.round(clamp(raw.duration_s, 10, 180, 70)),
     label:      String(raw.label ?? "Unnamed sensation"),
-    needs:      withoutMisleadingRungs(normaliseNeeds(raw.needs)),
+    needs:      asClues(normaliseNeeds(raw.needs)),
   };
 }
 
@@ -321,6 +381,7 @@ export function sniffNeeds(t: string): Need[] {
   if (/tired|exhaust|sleep|can'?t think|fog|drain/.test(t)) add("rest",    "actual rest");
   if (/alone|lonely|miss|sad|cry|low/.test(t))              add("company", "him, nearby");
   if (/heavy|ache|back|hold|hug|curl/.test(t))              add("warmth",  "weight on her");
+  if (/hungry|starv|eaten|craving|food/.test(t))            add("food",    "something to eat");
   if (!found.length) add("heat", "something warm");
   return found.slice(0, 3);
 }
@@ -337,7 +398,7 @@ export function fallback(message: string, intensity: number): Translation {
   // through the same guard as the model's answer: the stock cross-off lines are
   // only safe once they have been checked against what she actually needs
   return { ...base, peak: Math.max(0.2, intensity / 10),
-           needs: withoutMisleadingRungs(sniffNeeds(t)), offline: true };
+           needs: asClues(sniffNeeds(t)), offline: true };
 }
 
 /* --------------------------- scoring --------------------------- */

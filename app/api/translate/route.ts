@@ -37,7 +37,7 @@ const RESPONSE_SCHEMA = {
       items: {
         type: "object",
         properties: {
-          tag:   { type: "string", enum: ["heat", "meds", "rest", "company", "warmth"] },
+          tag:   { type: "string", enum: ["heat", "meds", "rest", "company", "warmth", "food"] },
           label: { type: "string" },
           hints: { type: "array", items: { type: "string" } },
         },

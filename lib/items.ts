@@ -11,6 +11,7 @@ export const ITEMS: Item[] = [
   { id: "music",   emoji: "🎧",  name: "Her playlist",      tag: "company" },
   { id: "cat",     emoji: "🐈",  name: "Call in the cat",   tag: "company" },
   { id: "cancel",  emoji: "📵",  name: "Cancel her 9am",    tag: "rest", once: true },
+  { id: "food",    emoji: "🍜",  name: "Order her food",    tag: "food"    },
   { id: "yoga",    emoji: "🧘",  name: "“Tried yoga?”", tag: "bad", bad: true },
 ];
 
