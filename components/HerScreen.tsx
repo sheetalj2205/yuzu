@@ -37,7 +37,7 @@ export default function HerScreen({
   won: boolean;               // everything she asked for just landed
   partnerAt: Presence;        // is he actually looking at this?
   leftCount: number;          // how many times he has wandered off this cycle
-  reach: "watching" | "buzzed" | "unreachable" | null;   // did his phone actually get it
+  reach: "buzzed" | "unreachable" | null;     // did his phone actually get it
   onRooms: () => void;        // back out to her other rooms
   onSend: (message: string, intensity: number) => void | Promise<void>;
   onVerdict: (helped: boolean) => void;
@@ -94,7 +94,6 @@ export default function HerScreen({
       */}
       {sent && reach && (
         <p className="text-center font-round font-bold text-xs text-inkFaint">
-          {reach === "watching"   && `${partnerName ?? "He"} is looking at it right now.`}
           {reach === "buzzed"     && `${partnerName ?? "His"} phone is buzzing. ✓`}
           {reach === "unreachable" && `${partnerName ?? "He"} hasn't turned notifications on, so his phone stayed quiet.`}
         </p>

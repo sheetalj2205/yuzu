@@ -69,8 +69,10 @@ self.addEventListener("push", (event) => {
    * "updated in the background" notice and then cancelling his subscription
    * outright, which is how notifications went from working to completely dead.
    *
-   * Whether he is watching is decided where it can be known honestly: her phone
-   * only sends when his heartbeat has gone quiet.
+   * There is no longer a check anywhere. Every version of it asked "is his page
+   * visible", and on iOS that question has no honest answer: a home-screen app
+   * that has been swiped away is not reported as hidden. So Yuzu sends every
+   * time, and this shows every time.
    */
   const title = payload.title || "She needs you";
   event.waitUntil(
@@ -98,19 +100,4 @@ self.addEventListener("notificationclick", (event) => {
       return self.clients.openWindow(target);
     })
   );
-});
-
-/**
- * Which worker is actually running?
- *
- * iOS keeps an installed app's old service worker alive for a long time, and a
- * push handler from three deploys ago looks identical from the outside: the
- * server says it sent, Apple says 201, and nothing appears on the phone. This
- * lets the page ask the worker itself, so that question stops being guesswork.
- */
-self.addEventListener("message", (event) => {
-  if (event.data !== "version") return;
-  const reply = { version: CACHE };
-  if (event.ports && event.ports[0]) event.ports[0].postMessage(reply);
-  else if (event.source) event.source.postMessage(reply);
 });

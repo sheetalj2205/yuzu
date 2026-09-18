@@ -92,57 +92,14 @@ export async function enablePush(sb: SupabaseClient, userId: string): Promise<Pu
 }
 
 /**
- * Which service worker is actually running on this phone.
+ * Pull down a newer service worker if one is sitting waiting.
  *
- * iOS keeps an installed app's old worker alive far longer than you expect, and
- * a stale push handler is invisible from every other angle: the server sends,
- * Apple returns 201, and the phone stays dark. update() also pulls a newer
- * worker down if one is sitting waiting, so asking the question tends to fix it.
+ * iOS keeps an installed app's worker alive far longer than you expect, and a
+ * stale push handler is invisible from every other angle: the server sends,
+ * Apple returns 201, and the phone stays dark. Asking for an update on every
+ * load is how that fixes itself instead of needing a reinstall.
  */
-export async function workerVersion(): Promise<string> {
-  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return "none";
-  try {
-    const reg = await navigator.serviceWorker.ready;
-    void reg.update();
-    const sw = reg.active;
-    if (!sw) return "none";
-    return await new Promise<string>((resolve) => {
-      const channel = new MessageChannel();
-      const giveUp = setTimeout(() => resolve("too old to answer"), 2000);
-      channel.port1.onmessage = (e) => {
-        clearTimeout(giveUp);
-        resolve(String((e.data as { version?: string })?.version ?? "?"));
-      };
-      sw.postMessage("version", [channel.port2]);
-    });
-  } catch {
-    return "?";
-  }
-}
-
-export type TestResult = { ok: boolean; detail: string };
-
-/**
- * Push one notification to this very phone, down the exact path a real cramp
- * takes. If this arrives and a cramp does not, the fault is not delivery.
- */
-export async function testPush(): Promise<TestResult> {
-  try {
-    const res = await fetch("/api/push", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        self: true, title: "Yuzu test 🔔",
-        body: "Push works. A real one will feel like this.",
-        tag: "yuzu-test", vibrate: [300, 120, 300],
-      }),
-    });
-    const out = await res.json().catch(() => ({}));
-    if (out?.sent > 0) return { ok: true, detail: "Sent. It should appear now." };
-    if (out?.reason) return { ok: false, detail: out.reason };
-    if (out?.failed) return { ok: false, detail: `Apple refused ${out.failed} of ${out.had}.` };
-    if (out?.pruned) return { ok: false, detail: "Your subscription had expired. Reopen and try again." };
-    return { ok: false, detail: out?.error ?? "Nothing was sent." };
-  } catch {
-    return { ok: false, detail: "Could not reach the server." };
-  }
+export function refreshWorker(): void {
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+  void navigator.serviceWorker.ready.then(reg => reg.update()).catch(() => {});
 }

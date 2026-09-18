@@ -6,7 +6,7 @@ import { buzzComfort, buzzPain, buzzStrike, buzzWrong, startBuzzLoop, stopBuzz }
 import { hintFor, score as scoreOf, tickOff, unmet } from "@/lib/translate";
 import { cue } from "@/lib/sound";
 import { readPartner, trackVisibility, type Presence } from "@/lib/presence";
-import { enablePush, ensurePush, pushState, type PushState } from "@/lib/push";
+import { enablePush, ensurePush, pushState, refreshWorker, type PushState } from "@/lib/push";
 import { MAX_TRIES, type Item, type Need, type Pattern } from "@/lib/types";
 import HerScreen, { HITS, type Gift } from "@/components/HerScreen";
 import HisScreen from "@/components/HisScreen";
@@ -18,7 +18,7 @@ type Cycle = {
 };
 
 /** The last attempt to reach his phone: for her eyes, so she never has to guess. */
-type Reach = { at: number; state: "watching" | "buzzed" | "unreachable" } | null;
+type Reach = { at: number; state: "buzzed" | "unreachable" } | null;
 
 export default function Room() {
   const { code } = useParams<{ code: string }>();
@@ -69,7 +69,9 @@ export default function Room() {
       setMyName(p.name ?? "Someone");
       setPush(pushState());
       // Safari cancels a subscription and leaves the permission granted, so his
-      // phone looks fine while nothing can reach it. Put it back, quietly.
+      // phone looks fine while nothing can reach it. Put it back, quietly, and
+      // pull down a newer worker if iOS is still running an old one.
+      refreshWorker();
       void ensurePush(sb, user.id).then(setPush);
 
       const { data: room } = await sb.from("rooms").select("id, her_id, him_id").eq("code", code).single();
@@ -103,9 +105,6 @@ export default function Room() {
    * directly. Faster, and it actually arrives.
    */
   const chanRef = useRef<ReturnType<typeof sb.channel> | null>(null);
-
-  /** When his page last told us it was awake. 0 means never. */
-  const partnerSeenRef = useRef(0);
 
   useEffect(() => {
     if (!roomId || !me || !meId) return;
@@ -161,17 +160,6 @@ export default function Room() {
       setTimeout(() => { setBuzzing(false); setPow(null); }, 900);
     });
 
-    /**
-     * A heartbeat, because presence alone cannot tell us he walked away.
-     *
-     * Presence is event driven: it says "here" until a visibilitychange fires,
-     * and iOS never fires one for a suspended home-screen app, so his phone
-     * goes on claiming he is watching from inside his pocket. A beat he has to
-     * keep sending cannot lie that way. A suspended page stops running timers,
-     * so silence IS the signal.
-     */
-    ch.on("broadcast", { event: "watching" }, () => { partnerSeenRef.current = Date.now(); });
-
     ch.on("presence", { event: "sync" }, () => {
       const { presence, name } = readPartner(ch.presenceState(), me);
       setPartnerAt(prev => {
@@ -182,22 +170,12 @@ export default function Room() {
       if (name) setPartner(name);
     });
 
-    const beat = () => { void ch.send({ type: "broadcast", event: "watching", payload: {} }); };
-
     ch.subscribe(status => {
-      if (status !== "SUBSCRIBED") return;
-      void ch.track({ role: me, name: myName, state: "here" });
-      // at once, not in five seconds: otherwise her very first send lands inside
-      // the gap before his first beat and pushes a notification at a phone he is
-      // already holding
-      if (document.visibilityState === "visible") beat();
+      if (status === "SUBSCRIBED") void ch.track({ role: me, name: myName, state: "here" });
     });
 
     const untrack = trackVisibility(ch, { role: me, name: myName });
-    const beating = setInterval(() => {
-      if (document.visibilityState === "visible") beat();
-    }, 5000);
-    return () => { clearInterval(beating); untrack(); chanRef.current = null; sb.removeChannel(ch); };
+    return () => { untrack(); chanRef.current = null; sb.removeChannel(ch); };
   }, [sb, roomId, me, meId, myName]);
 
   /**
@@ -346,36 +324,37 @@ export default function Room() {
    * in his pocket.
    */
   /**
-   * Buzz his phone from outside the app, but only when he is really outside it.
+   * Buzz his phone. Always.
    *
-   * The decision lives here and not in his service worker. Subscribing promised
-   * the browser that every push would display something, so a worker that
-   * silently drops one breaks the promise, and Safari answers by cancelling his
-   * subscription. It has to be decided before anything is sent.
+   * There used to be a check here: skip the push when he is already looking at
+   * the screen. It is why notifications never worked, and the reason is worth
+   * keeping written down.
    *
-   * The heartbeat is what makes that possible. Presence could not be trusted:
-   * it is event driven, and a suspended iPhone app never fires the event, so it
-   * claimed he was watching from inside his pocket. His page beats every five
-   * seconds while it is awake, and a suspended page cannot run a timer, so
-   * silence is the only honest signal there is.
+   * Every version of that check asked the same question, "is his page visible",
+   * and on iOS that question has no honest answer. A home-screen app that has
+   * been swiped away is not reported as hidden, so it went on claiming he was
+   * watching from inside his pocket, and her phone politely said nothing. The
+   * heartbeat was meant to fix that and did not: a beat is only sent while the
+   * page believes it is visible, so it inherited the same lie.
+   *
+   * There is no signal on iOS that says "he is not looking". So Yuzu stops
+   * pretending there is. It sends, every time. If he happens to be holding the
+   * phone he gets a banner for something he already felt, which is a far
+   * smaller failure than her pain never reaching him at all.
    */
   const pushPartner = useCallback(async (title: string, body: string, vibrate: number[], tag: string) => {
     if (!roomId) return;
-    if (Date.now() - partnerSeenRef.current < 15_000) {
-      setReach({ at: Date.now(), state: "watching" });   // he is looking right now
-      return;
-    }
     try {
       const res = await fetch("/api/push", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roomId, title, body, vibrate, tag }),
+        body: JSON.stringify({ roomId, title, body, vibrate, tag, url: `/room/${code}` }),
       });
       const out = await res.json().catch(() => ({}));
       setReach({ at: Date.now(), state: out?.sent > 0 ? "buzzed" : "unreachable" });
     } catch {
       setReach({ at: Date.now(), state: "unreachable" });
     }
-  }, [roomId]);
+  }, [roomId, code]);
 
   const turnOnPush = useCallback(async () => {
     if (!meId) return;
@@ -394,9 +373,9 @@ export default function Room() {
    * this is every twenty, under the same ten minute cap, and it stops the moment
    * she says every need is met. He still cannot end it. Only she can.
    *
-   * Only while he is genuinely away. A push his worker throws away is worse than
-   * none: WebKit shows its own "updated in the background" notice for a push
-   * that displays nothing, and drops the subscription if it keeps happening.
+   * This is what "he cannot switch it off" actually means on an iPhone, so it
+   * does not try to work out whether he is watching. It just keeps going until
+   * she says every need is met.
    */
   useEffect(() => {
     if (me !== "her" || !cycleId) return;
@@ -404,8 +383,6 @@ export default function Room() {
     const id = setInterval(() => {
       if (Date.now() - started > 10 * 60_000) return;
       if (unmet(cycleRef.current?.needs ?? []).length === 0) return;
-      // his page beats every 5s while it is awake, so a 15s gap means gone
-      if (Date.now() - partnerSeenRef.current < 15_000) return;
       void pushPartner(
         "She's still hurting",
         "You haven't worked it out yet.",
