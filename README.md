@@ -2,193 +2,237 @@
 
 **Pain travels one way. Comfort travels back.**
 
-She's in Pune. He's in Berlin. When her cramp starts, his phone starts buzzing
-and won't stop. He never sees what she wrote, only a hint. He has **5 tries**
-to work out what she needs. Only she can make it stop. If he fails, she gets to
-hit back, and every punch fires his phone.
+![Yuzu](docs/yuzu-card.png)
 
-Room codes are **Cuddle Codes**. Installable as an app. 🍊
+A game for couples who are apart. She writes how her period pain feels. His phone
+starts buzzing and keeps buzzing. He never sees what she wrote, only short clues
+from the AI, and he has to work out what she needs from a drawer of things he can
+send. Only she can make it stop.
 
----
+| | |
+|---|---|
+| **Live app** | https://yuzu-vert.vercel.app |
+| **Try it with no sign-in** | https://yuzu-vert.vercel.app/demo |
 
-## Just want to see it? (zero setup)
-
-```bash
-open prototype/index.html
-```
-
-Both phones side by side, no server, no keys.
+Built for the Elevate Women Global Hackathon.
 
 ---
 
-## Run the real app
+## How a round works
 
-### 1. Install
-```bash
-npm install
-```
+1. **She writes how she feels**, in her own words, and sets how bad it is from 1 to 10.
+2. **His phone buzzes.** The rhythm follows her pain: sharp pain is short hard pulses,
+   a heavy ache is a slow grind.
+3. **He sees clues, never her words.** He picks something from his drawer: a hot water
+   bottle, tea, a blanket, painkillers, a hug, food, cancelling her morning, or
+   favourites he adds himself.
+4. **She judges every gift**: *That helped* or *Not really*. His phone only stops when
+   everything she needs is met.
+5. **He gets three wrong guesses.** After the third, her real message appears on his
+   screen, his drawer locks, and she hits back. Every 👊 🔨 🥊 ⚡ lands on his screen
+   with a sound and a buzz.
 
-### 2. Supabase (login + live sync)
-1. New project at [supabase.com](https://supabase.com)
-2. **SQL Editor** → paste `supabase/schema.sql` → **Run**
-3. **Authentication → Providers → Google** → enable, add your Google OAuth client
-4. **Authentication → URL Configuration → Redirect URLs** → add:
-   - `http://localhost:3000/auth/callback`
-   - `https://YOUR-APP.vercel.app/auth/callback`
-5. **Settings → API** → copy the Project URL and the `anon` key
-
-### 3. Web Push (buzz him with the app closed)
-
-Run `supabase/003_push.sql` in the SQL Editor, then add to `.env.local`:
-
-```bash
-node -e "console.log(require('web-push').generateVAPIDKeys())"
-```
-
-`NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT=mailto:you@…`.
-
-You also need **`SUPABASE_SERVICE_ROLE_KEY`** (Settings → API). This one is
-server-only, it must NOT be prefixed `NEXT_PUBLIC_`. The send route uses it to
-read the *other* person's push subscription, which row-level security rightly
-forbids everyone else from doing.
-
-> Android honours the custom vibration pattern. iPhone needs iOS 16.4+ **and the
-> app installed to the home screen**, and buzzes with the system default rather
-> than our rhythm.
-
-### 4. Gemini (the AI)
-Free key: **https://aistudio.google.com/apikey**
-
-### 5. Fill in your keys
-```bash
-cp .env.example .env.local
-```
-Then edit `.env.local`:
-```
-NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-GEMINI_API_KEY=AIza...
-GEMINI_MODEL=gemini-flash-latest
-```
-
-### 6. Start it
-```bash
-npm run dev
-```
-
-Open **http://localhost:3000**.
-
-### 7. Test with two phones
-Find your laptop's IP:
-```bash
-ipconfig getifaddr en0
-```
-Both phones on the same wifi → `http://<that-ip>:3000`
-
-- **Her phone:** sign in → *"I'm the one in pain"* → note the Cuddle Code
-- **His phone:** sign in → *"I'm here to help"* → type the code
-- She writes how she feels → **his phone buzzes**
-
-### iPhone vs Android
-
-| | Android (Chrome) | iPhone (Safari) |
-|---|---|---|
-| Install as an app | ✅ install button | ✅ Share → Add to Home Screen |
-| Everything else | ✅ | ✅ |
-| **Real vibration** | ✅ | ❌ Safari has never shipped the Vibration API |
-| Instead, iPhone gets | - | full-screen **pulse** on the same rhythm, plus an optional low **tone** through the speaker (🔇 toggle, top right) |
-
-**Demo on Android.** The pulse is a good fallback, not a replacement, the whole
-point of Yuzu is something you feel without looking at the screen.
-
----
-
-## Deploy to Vercel
-
-```bash
-npm i -g vercel
-vercel
-```
-
-Then in the Vercel dashboard → **Settings → Environment Variables**, add all three
-(`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `GEMINI_API_KEY`),
-and redeploy:
-
-```bash
-vercel --prod
-```
-
-**Don't forget:** add `https://YOUR-APP.vercel.app/auth/callback` to Supabase's
-redirect URLs, and to your Google OAuth client's authorised redirect URIs.
-This is the single most common reason login breaks in production.
-
-Vercel gives you HTTPS, which the PWA install and the vibration API both require.
-
----
-
-## The QR moment - `/demo`
-
-`https://YOUR-APP.vercel.app/demo` - **no login, no pairing.** Put the QR code on
-your slide. The whole room scans it, taps once, and every phone buzzes with the
-same cramp, then reads what she actually wrote.
-
-Safe at scale because every phone sends the *same* message, so after the first one
-it is all cache: **forty phones, one Gemini call.**
-
-The tap is required, not decorative, browsers refuse to vibrate until the user
-has touched the page.
-
----
-
-## It's a PWA
-
-On the deployed site, phones offer **"Add to home screen"** and it opens
-full-screen with no browser chrome, it looks and feels like a real app.
-
-- `public/manifest.webmanifest` - name, colours, icons
-- `public/sw.js` - caches the shell so it opens instantly; live data always
-  hits the network
-- `components/InstallPrompt.tsx` - the install button (Android) and the
-  Share → Add to Home Screen hint (iOS)
-
-Icons are generated pink hearts in `public/`. Swap them for your own art if you like.
+Her screen is a small anime room. Every gift he sends appears around her, and the room
+warms up as her pain score falls to zero.
 
 ---
 
 ## What the AI does
 
-One call. Her sentence in, three things out:
+One Gemini call. Her sentence goes in, three things come out:
 
 | Output | Why it needs AI |
 |---|---|
-| **A buzz pattern** | "Stabbing" and "dull ache" must *feel* different. Fixed buttons can't. |
-| **Every need she mentioned** | "Freezing, back hurts, miss you" is **three** needs. Score hits 0 only when all three are ticked. |
-| **Hints per need** | He's nudged toward whatever is *still unfixed*, never told. Clearer each failed try. |
+| **A vibration pattern** | "Stabbing" and "dull ache" should feel different. Fixed buttons cannot do that. |
+| **Every need she mentioned** | "I'm freezing, my back is killing me and I miss you" is **three** needs. His phone keeps going until all three are met. |
+| **Three clues per need** | One for each guess he has. They make him think, rather than handing him the answer. |
 
-Prompt: `lib/translate.ts`. Route: `app/api/translate/route.ts`.
+**Counting needs.** The model first lists her separate complaints, then writes exactly
+one need per complaint. That stops it inventing a need she never asked for, or
+dropping one she did.
 
-**Gemini, with built-in rules behind it.**
+**The three clues:**
 
-1. **Gemini** - `GEMINI_API_KEY`, `GEMINI_MODEL` (a comma-separated chain, tried
-   in order; Google retires versions and busy ones return 503)
-2. **Built-in rules** - no key, no network, always works
+1. **Shows the problem without naming it.** Not "she is hungry" but *"her stomach has
+   started making the decisions."*
+2. **Rules out one thing in his drawer**, so he stops considering it.
+3. **Describes the right thing without its name.** Not "send a hot water bottle" but
+   *"it holds its heat long after a mug goes cold."*
 
-Gemini returned 503 "high demand" several times during one afternoon of testing,
-which is why the rules stay. Delete the key and the app still runs.
+**Checked in code, not just asked for.** The rules are a system prompt, and her message
+is sent separately, so what she writes cannot change how the rules work. Every clue is
+then checked before he sees it. A clue that reads like an instruction, names the item
+he is looking at, or rules out something she actually needs is replaced.
 
-The browser never talks to Gemini, the key stays server-side, and her
-message never reaches the phone of the person guessing.
+**Always works.** Gemini runs only on the server, so the key never reaches a browser
+and her words never reach his phone early. Replies take about 1.3 seconds. If Gemini
+is down or has no key, built-in rules answer instead.
+
+Code: `lib/translate.ts` (prompt, checks, fallback) and `app/api/translate/route.ts`.
 
 ---
 
-## The rules we don't break
+## Features
+
+- **Google sign-in** that stays signed in. Sign out is on the rooms screen.
+- **Several rooms at once.** She can give a different Cuddle Code to different people,
+  switch between rooms, and close one for good. Her pain only reaches the room she is in.
+- **Share the code in one tap.** On a phone it opens the share sheet, so the code goes
+  straight into WhatsApp.
+- **His drawer is his.** He can reorder it by dragging, throw things out, put them back,
+  and add her favourites with any emoji.
+- **Notifications when his app is closed**, repeating every 20 seconds for up to
+  10 minutes until she is looked after. None while his app is open, because he has
+  already felt it there. Her screen says whether his phone actually buzzed.
+- **Installable as an app** (PWA), with no app store.
+- **The QR moment** at `/demo`: no sign-in, no pairing. A whole room scans it, taps
+  once, and every phone buzzes with the same cramp. Every phone sends the same
+  message, so after the first one it is all cache: forty phones, one Gemini call.
+- **Spectator view** at `/watch/CODE` for filming and live demos: both phones side by
+  side on one screen, updating live. Read only. Sign in as either person to use it,
+  and add `?bare=1` for a clean screen recording.
+
+---
+
+## iPhone and Android
+
+| | Android (Chrome) | iPhone (Safari) |
+|---|---|---|
+| Install as an app | ✅ Install button | ✅ Share → Add to Home Screen |
+| Buzz while the app is open | ✅ Real vibration | 🔊 A soft sound instead |
+| Buzz while the app is closed | ✅ Notification with our vibration pattern | ✅ Notification, iOS 16.4+, installed to the home screen |
+| Our own vibration rhythm | ✅ | ❌ |
+
+iPhones do not let websites control vibration at all. No browser on iOS supports the
+Vibration API, and iOS ignores the vibration pattern on notifications. On iPhone the
+notification buzz comes from iOS itself, so check **Settings → Notifications → Yuzu →
+Sounds** is on. **For demos, use Android for his phone.**
+
+---
+
+## Tech
+
+| Part | What we used |
+|---|---|
+| App | Next.js 16, React 19, TypeScript, Tailwind |
+| Sign-in, database, live sync | Supabase: Google OAuth, Postgres with row-level security, Realtime broadcast |
+| AI | Gemini (a model chain, tried in order), structured JSON output, system prompt |
+| Notifications | Web Push with VAPID keys, sent at high urgency |
+| Hosting | Vercel |
+
+---
+
+## Run it yourself
+
+### 1. Install
+
+```bash
+npm install
+```
+
+### 2. Supabase
+
+1. Create a project at [supabase.com](https://supabase.com).
+2. **SQL Editor**: run these files in order.
+   1. `supabase/schema.sql`: tables and security rules
+   2. `supabase/002_join_and_names.sql`: joining by code, and seeing your partner's name
+   3. `supabase/003_push.sql`: notification subscriptions
+   4. `supabase/004_many_rooms.sql`: several rooms, and only she can close one
+3. **Authentication → Providers → Google**: turn it on and add your Google OAuth client.
+4. **Authentication → URL Configuration → Redirect URLs**: add
+   `http://localhost:3000/auth/callback` and `https://YOUR-APP.vercel.app/auth/callback`.
+5. **Settings → API**: copy the Project URL, the `anon` key and the `service_role` key.
+
+### 3. Keys
+
+```bash
+cp .env.example .env.local
+```
+
+| Key | Where it comes from |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Settings → API |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Settings → API |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API. **Server only.** Never add `NEXT_PUBLIC_` to it. |
+| `GEMINI_API_KEY` | Free at https://aistudio.google.com/apikey |
+| `GEMINI_MODEL` | Optional. Default: `gemini-3.5-flash-lite,gemini-3.5-flash,gemini-flash-latest` |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | See below |
+| `VAPID_PRIVATE_KEY` | See below |
+| `VAPID_SUBJECT` | `mailto:` and your email |
+
+Make the two VAPID keys:
+
+```bash
+node -e "console.log(require('web-push').generateVAPIDKeys())"
+```
+
+The service role key is how the server finds the other person's notification
+subscription. The security rules stop everyone else from reading it, so the route
+checks for itself that you are really in that room.
+
+### 4. Start it
+
+```bash
+npm run dev
+```
+
+Open http://localhost:3000.
+
+### 5. Try it with two phones
+
+On the same wifi, find your laptop's address:
+
+```bash
+ipconfig getifaddr en0
+```
+
+Open `http://<that-address>:3000` on both phones.
+
+- **Her phone:** sign in → *I'm the one in pain* → share the Cuddle Code.
+- **His phone:** sign in → *I'm here to help* → type the code in.
+- She writes how she feels, and his phone buzzes.
+
+Notifications and installing need HTTPS, so test those on the deployed site.
+
+### 6. Deploy
+
+```bash
+npm i -g vercel
+vercel --prod
+```
+
+In Vercel → **Settings → Environment Variables**, add **all eight** keys from the
+table above, then deploy again. Also add `https://YOUR-APP.vercel.app/auth/callback` to
+Supabase's redirect URLs and to your Google OAuth client. A missing redirect URL is the
+most common reason sign-in breaks after deploying.
+
+---
+
+## Where things are
+
+| Path | What it is |
+|---|---|
+| `app/room/[code]/page.tsx` | The game: live sync, gifts, judging, hits, notifications |
+| `components/HerScreen.tsx` | Her screen: the room, the message box, judging |
+| `components/HisScreen.tsx` | His screen: the clue, the drawer |
+| `components/RoomScene.tsx` | The anime room |
+| `lib/translate.ts` | The AI prompt, the clue checks, the fallback rules, scoring |
+| `app/api/translate/route.ts` | Calls Gemini |
+| `app/api/push/route.ts` | Sends notifications |
+| `public/sw.js` | Service worker: shows notifications, caches only the icons |
+| `lib/haptics.ts`, `lib/sound.ts` | Vibration patterns, and every sound (all generated, no audio files) |
+| `app/room/page.tsx` | Her list of rooms, or his join screen |
+| `app/watch/[code]/page.tsx` | The spectator view |
+| `supabase/` | Database setup, plus scripts to reset test accounts |
+| `scripts/status.py` | Who is signed up, who is paired, recent rounds |
+| `prototype/index.html` | The original one-file prototype. Open it with no setup. |
+
+---
+
+## The rules we keep
 
 - **He cannot stop his own phone.** Only she can.
-- **He never sees her words** until he's failed 5 times.
-- **She always finds out** how he did, win or lose, including when he walks away.
-- **He can leave.** A hidden page cannot vibrate; that is the browser, not a bug.
-  So he is never trapped, his leaving just shows up on her screen.
-- **Nothing extra on either screen.**
-- The buzz loop is capped at 10 minutes. Deliberate, say so in the pitch.
-
-See `PLAN.md` for the schedule and the demo/video plan.
+- **He never sees her words** until his third wrong guess.
+- **She always finds out** how it went, including when he closes the app.
+- **Once he is out of guesses, his drawer is shut.** It is her turn.
+- **The buzzing stops after 10 minutes.** That is on purpose, so nobody gives up on the app.

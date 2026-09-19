@@ -8,7 +8,7 @@ import type { PushState } from "@/lib/push";
 
 /**
  * HIS PHONE. Rule: he sees a hint and a drawer. Never her words -
- * not until he has burned all five tries.
+ * not until his third wrong guess.
  */
 export default function HisScreen({
   partnerName, roomCode, hint, tries, unmetCount, revealedMessage, buzzing, custom,
