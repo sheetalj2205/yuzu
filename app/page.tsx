@@ -71,6 +71,17 @@ function Login() {
         )}
 
         <button onClick={signIn} className="btn btn-ghost">Continue with Google</button>
+
+        {/*
+          Said before they sign in, not buried in a file on GitHub. What she
+          writes here is about her health, and people are entitled to know where
+          it goes before they type it, not after.
+        */}
+        <p className="text-inkFaint text-xs mt-5 leading-relaxed text-balance">
+          Yuzu keeps your name, your room and what you write in it. Only the two
+          people in a room can read it, and what she writes is sent to an AI to
+          make the clues. No tracking, no ads. Closing a room deletes it.
+        </p>
       </div>
     </main>
   );

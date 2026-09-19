@@ -229,6 +229,61 @@ most common reason sign-in breaks after deploying.
 
 ---
 
+## Built for the hackathon
+
+**Everything in this repository was written during the Elevate Women Global
+Hackathon 2026.** The git history is the evidence: 50 commits, all dated 16 to
+19 September 2026, starting from an empty folder. No part of it existed before
+the hackathon, and nothing was carried over from an earlier project.
+
+**What we did not write** is the usual off-the-shelf layer: the framework, the
+database, the model, and the host. Those are listed under licences below.
+
+### AI we used
+
+**Inside the product.** Google **Gemini** is the AI feature itself. It reads her
+message and returns the vibration pattern, the list of what she needs and the
+clues. It runs server-side only, in `app/api/translate/route.ts`, with the
+prompt in `lib/translate.ts`.
+
+**While building it.** This project was written with heavy use of **Claude
+(Anthropic)** as a coding assistant, through Claude Code. It was used for
+writing and refactoring application code, designing and testing the AI prompt,
+debugging (notably the iOS notification work), and drafting documentation. Every
+line was reviewed, run and tested by us, and we are responsible for all of it.
+Design decisions, the product idea, the game rules and the priorities are ours.
+
+### Licences
+
+Everything we wrote is MIT licensed: see [LICENSE](LICENSE). Third-party parts,
+all open-source and none restricting commercial use:
+
+| Component | Licence |
+|---|---|
+| Next.js, React, Tailwind CSS | MIT |
+| `@supabase/supabase-js`, `@supabase/ssr` | MIT |
+| `web-push` | MPL-2.0 |
+| Zen Maru Gothic, Zen Kaku Gothic New (Google Fonts) | SIL Open Font License 1.1 |
+| Build tooling pulled in by the above (`sharp`/libvips, `caniuse-lite`) | LGPL-3.0-or-later, CC-BY-4.0 |
+
+Gemini, Supabase and Vercel are used through their normal free tiers, under
+their own terms. All artwork, including the anime room, the icons and the
+vibration and sound design, was made by us. No stock images or purchased assets
+are used, and emoji come from the reader's own device.
+
+### Privacy
+
+Yuzu stores personal data, including what she writes about her pain, which is
+health information. [PRIVACY.md](PRIVACY.md) says exactly what is stored, who
+can read it, and how to delete it. In short: only the two people in a room can
+read it, enforced by the database and not just the app; her message never
+reaches his phone until the game reveals it; and there is no tracking or
+analytics of any kind.
+
+**If you are judging this:** please use a test Google account.
+
+---
+
 ## The rules we keep
 
 - **He cannot stop his own phone.** Only she can.
