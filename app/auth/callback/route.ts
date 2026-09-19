@@ -27,12 +27,13 @@ export async function GET(req: Request) {
     return NextResponse.redirect(`${origin}/?error=${encodeURIComponent(error.message)}`);
   }
 
-  // already onboarded? go straight to the room, not back through "which one are you"
-  const { data: { user } } = await sb.auth.getUser();
-  if (user) {
-    const { data: profile } = await sb.from("profiles").select("gender").eq("id", user.id).maybeSingle();
-    if (profile?.gender) return NextResponse.redirect(`${origin}/room`);
-  }
-
+  /*
+   * Every sign-in asks "which one are you?" again, with the last answer already
+   * marked. Once chosen, a role used to be permanent: signing out and back in
+   * went straight past the question, so someone who picked the wrong one, or
+   * who is helping one person and in pain with another, had no way to change.
+   * Staying signed in does not come back through here, so this costs nothing
+   * day to day; it only asks when someone has actually just signed in.
+   */
   return NextResponse.redirect(`${origin}${next}`);
 }

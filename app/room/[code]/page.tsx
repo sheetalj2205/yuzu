@@ -71,7 +71,6 @@ export default function Room() {
       if (!user) return router.push("/");
       const { data: p } = await sb.from("profiles").select("gender, name").eq("id", user.id).single();
       if (!p?.gender) return router.push("/onboarding");
-      setMe(p.gender);
       setMeId(user.id);
       setMyName(p.name ?? "Someone");
       setPush(pushState());
@@ -83,9 +82,21 @@ export default function Room() {
 
       const { data: room } = await sb.from("rooms").select("id, her_id, him_id").eq("code", code).single();
       if (!room) return router.push("/room");
+
+      /**
+       * Which side of THIS room am I on? Asked of the room, not of the profile.
+       *
+       * The saved role is only what the rooms screen shows by default, and it
+       * can be switched. Trusting it here meant that after switching to
+       * "here to help", opening one of her own rooms would hand her HIS screen
+       * and have her guessing at her own pain. The room knows who is who.
+       */
+      const side = room.her_id === user.id ? "her" : room.him_id === user.id ? "him" : null;
+      if (!side) return router.push("/room");
+      setMe(side);
       setRoomId(room.id);
 
-      const otherId = p.gender === "her" ? room.him_id : room.her_id;
+      const otherId = side === "her" ? room.him_id : room.her_id;
       if (otherId) {
         const { data: other } = await sb.from("profiles").select("name").eq("id", otherId).single();
         setPartner(other?.name ?? null);
@@ -618,6 +629,7 @@ export default function Room() {
       onSend={sendGift}
       onAddFavourite={addFavourite}
       onRemoveFavourite={removeFavourite}
+      onMenu={() => router.push("/room?stay=1")}
     />
   );
 }

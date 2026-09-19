@@ -19,7 +19,10 @@ type Room = { id: string; code: string; him_id: string | null; partner: string |
 
 function Rooms() {
   const router = useRouter();
-  const closedOne = useSearchParams().get("closed") === "1";
+  const params = useSearchParams();
+  const closedOne = params.get("closed") === "1";
+  // he came here on purpose (to sign out or switch), so do not bounce him back in
+  const stay = params.get("stay") === "1";
   const [gender, setGender] = useState<"her" | "him" | null>(null);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [typed, setTyped] = useState("");
@@ -105,7 +108,7 @@ function Rooms() {
       // and "another room" live. He has nothing to choose, so he goes straight in.
       if (state.gender === "her" && !state.list.length) await makeRoom();
       // the one he joined most recently, not the first he ever joined
-      if (state.gender === "him" && state.list.length) {
+      if (state.gender === "him" && state.list.length && !stay) {
         router.replace(`/room/${state.list[state.list.length - 1].code}`);
       }
     })();
@@ -239,17 +242,28 @@ function Rooms() {
             />
             {err && <p className="text-pain text-sm mb-3">{err}</p>}
             <button className="btn" onClick={join} disabled={typed.length < 6}>Join her room</button>
+            {rooms.length > 0 && (
+              <button className="btn btn-ghost mt-3"
+                onClick={() => router.push(`/room/${rooms[rooms.length - 1].code}`)}>
+                Back to {rooms[rooms.length - 1].partner ?? "her"}&apos;s room →
+              </button>
+            )}
           </>
         )}
 
         <InstallHelp />
 
-        <button
-          onClick={signOut}
-          className="mt-4 text-inkFaint text-xs underline underline-offset-4"
-        >
-          Sign out
-        </button>
+        {/* both always reachable: a role is a choice, not a life sentence */}
+        <div className="mt-4 flex justify-center gap-5">
+          <button onClick={() => router.push("/onboarding")}
+            className="text-inkFaint text-xs underline underline-offset-4">
+            {gender === "her" ? "Switch to helping" : "Switch to the one in pain"}
+          </button>
+          <button onClick={signOut}
+            className="text-inkFaint text-xs underline underline-offset-4">
+            Sign out
+          </button>
+        </div>
       </div>
     </main>
   );

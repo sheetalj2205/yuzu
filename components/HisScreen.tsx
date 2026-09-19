@@ -13,6 +13,7 @@ import type { PushState } from "@/lib/push";
 export default function HisScreen({
   partnerName, roomCode, hint, tries, unmetCount, revealedMessage, buzzing, custom,
   push, pow, love, needCount, onSend, onAddFavourite, onRemoveFavourite, onEnablePush,
+  onMenu,
 }: {
   partnerName: string | null;
   roomCode: string;
@@ -30,6 +31,7 @@ export default function HisScreen({
   onSend: (item: Item) => void;
   onAddFavourite: (emoji: string, name: string) => void;
   onRemoveFavourite: (id: string) => void;
+  onMenu: () => void;          // out to sign out, switch role, or another room
 }) {
   const [adding, setAdding] = useState(false);
   const [emoji, setEmoji] = useState(FAVE_EMOJI[0]);
@@ -127,6 +129,15 @@ export default function HisScreen({
     <main className={`his-ground relative min-h-dvh px-4 py-5 flex flex-col gap-4
                       ${buzzing ? "shake" : ""}`}>
       <div className="w-full max-w-md mx-auto flex flex-col gap-4">
+      {/* His only way out, to sign out or join a different room. Roles are not
+          changed from inside a room: that lives on the menu screen, where it
+          cannot happen by accident mid-round. Leaving does not stop her buzz
+          reaching him: notifications carry on while he is gone. */}
+      <button onClick={onMenu}
+        className="self-start font-round font-bold text-xs text-inkFaint underline underline-offset-4">
+        ‹ menu
+      </button>
+
       {/* she said yes, he should see it, not just feel it */}
       {love && (
         <div aria-hidden className="pointer-events-none fixed inset-0 z-[72] overflow-hidden">

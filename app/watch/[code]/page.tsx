@@ -188,7 +188,7 @@ export default function Watch() {
             love={null}
             needCount={needs.length}
             onEnablePush={noop} onSend={noop}
-            onAddFavourite={noop} onRemoveFavourite={noop}
+            onAddFavourite={noop} onRemoveFavourite={noop} onMenu={noop}
           />
         </Phone>
       </div>
