@@ -206,8 +206,21 @@ export default function HisScreen({
         </>
       ) : null}
 
+      {/*
+        Out of guesses, the drawer shuts.
+
+        He had his three goes. Now it is her turn, and her turn is hitting him,
+        not judging a fourth gift he is still allowed to throw at the problem.
+        It opens again when she forgives him and a new round starts.
+      */}
+      {revealedMessage && (
+        <p className="text-center font-round font-bold text-sm text-inkSoft text-balance">
+          🔒 Your drawer is shut. She has the last word now.
+        </p>
+      )}
+
       {/* drawer */}
-      {(hint || revealedMessage) && (
+      {hint && !revealedMessage && (
         <>
           <div className="flex items-center justify-between -mb-1">
             <p className="font-round font-bold text-xs text-inkFaint">

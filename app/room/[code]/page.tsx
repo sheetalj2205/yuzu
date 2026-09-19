@@ -17,8 +17,12 @@ type Cycle = {
   tries: number; revealed: boolean; closed_at: string | null;
 };
 
-/** How long after his last touch we still count him as holding the phone. */
-const RECENTLY = 20_000;
+/**
+ * How long after his app last said "open" we still believe it. His app says it
+ * every four seconds while on screen, so ten seconds of silence means it has
+ * gone, even if the "closed" message never made it out.
+ */
+const RECENTLY = 10_000;
 
 /** The last attempt to reach his phone: for her eyes, so she never has to guess. */
 type Reach = { at: number; state: "watching" | "buzzed" | "unreachable" } | null;
@@ -110,16 +114,15 @@ export default function Room() {
   const chanRef = useRef<ReturnType<typeof sb.channel> | null>(null);
 
   /**
-   * When his thumb last touched the screen. 0 means never.
+   * When his app last said it was open and on screen. 0 means closed.
    *
-   * Not when his page was last "visible". Three versions of this asked iOS that
-   * question and iOS answered wrong every time: a home-screen app that has been
-   * swiped away is not reported as hidden, so it kept insisting he was watching
-   * from inside his pocket. A touch is different. A touch needs a person. A
-   * phone face down on a table cannot produce one, and no amount of iOS
-   * bookkeeping can invent one.
+   * Earlier versions of this were blamed for iPhone notifications failing, and
+   * the blame was wrong. The real cause was the push being sent at normal
+   * urgency, which lets Apple hold it until the phone is next used, so a closed
+   * app never heard anything no matter what this said. With that fixed, "is his
+   * app open and on screen" is exactly the right question to ask.
    */
-  const partnerUsingRef = useRef(0);
+  const partnerOpenRef = useRef(0);
 
   useEffect(() => {
     if (!roomId || !me || !meId) return;
@@ -185,29 +188,40 @@ export default function Room() {
       if (name) setPartner(name);
     });
 
-    ch.on("broadcast", { event: "using" }, () => { partnerUsingRef.current = Date.now(); });
+    ch.on("broadcast", { event: "open" },   () => { partnerOpenRef.current = Date.now(); });
+    ch.on("broadcast", { event: "closed" }, () => { partnerOpenRef.current = 0; });
 
     ch.subscribe(status => {
-      if (status === "SUBSCRIBED") void ch.track({ role: me, name: myName, state: "here" });
+      if (status !== "SUBSCRIBED") return;
+      void ch.track({ role: me, name: myName, state: "here" });
+      if (document.visibilityState === "visible") {
+        void ch.send({ type: "broadcast", event: "open", payload: {} });
+      }
     });
 
     const untrack = trackVisibility(ch, { role: me, name: myName });
 
-    /* Real input only: a tap, a swipe, a key. Never a timer and never a
-       visibility flag, because those are the two things that lied. Throttled,
-       since she needs to know he is here, not how fast he scrolls. */
-    let told = 0;
-    const iAmHere = () => {
-      const now = Date.now();
-      if (now - told < 4000) return;
-      told = now;
-      void ch.send({ type: "broadcast", event: "using", payload: {} });
-    };
-    const inputs = ["pointerdown", "touchstart", "keydown"] as const;
-    for (const type of inputs) addEventListener(type, iAmHere, { passive: true });
+    /**
+     * Tell her whether this app is open and on screen.
+     *
+     * "open" every four seconds while it is, so silence also means closed: a
+     * killed app sends nothing at all. "closed" the moment it goes to the
+     * background or is swiped away, so she does not have to wait out the
+     * silence before his phone is reachable again.
+     */
+    const onScreen = () => document.visibilityState === "visible";
+    const sayOpen   = () => { if (onScreen()) void ch.send({ type: "broadcast", event: "open", payload: {} }); };
+    const sayClosed = () => { void ch.send({ type: "broadcast", event: "closed", payload: {} }); };
+    const onVisibility = () => (onScreen() ? sayOpen() : sayClosed());
+
+    document.addEventListener("visibilitychange", onVisibility);
+    addEventListener("pagehide", sayClosed);
+    const beating = setInterval(sayOpen, 4000);
 
     return () => {
-      for (const type of inputs) removeEventListener(type, iAmHere);
+      clearInterval(beating);
+      document.removeEventListener("visibilitychange", onVisibility);
+      removeEventListener("pagehide", sayClosed);
       untrack(); chanRef.current = null; sb.removeChannel(ch);
     };
   }, [sb, roomId, me, meId, myName]);
@@ -358,24 +372,16 @@ export default function Room() {
    * in his pocket.
    */
   /**
-   * Buzz his phone, unless his thumb is already on it.
+   * Buzz his phone only when his app is not open.
    *
-   * Not sent when he has touched the screen in the last twenty seconds. He
-   * felt it in the app a moment ago; a banner on top of that is noise.
-   *
-   * Three earlier versions of this check asked "is his page visible" and iOS
-   * answered wrong every single time, which is why notifications were dead for
-   * weeks. This one never asks iOS anything. It waits to be told about a touch,
-   * and a touch needs a person: a phone in a pocket cannot produce one. When in
-   * doubt it sends, because a banner he did not need is a far smaller failure
-   * than her pain not reaching him.
-   *
-   * The cost, stated plainly: if he reads a hint for half a minute without
-   * touching anything, he gets a notification while looking straight at it.
+   * Open and on screen, he has already felt it: the in-app buzz and sound went
+   * off the moment her message landed, and a banner on top of that is noise.
+   * Closed, backgrounded or swiped away, this is the only thing that reaches
+   * him, so it goes every time.
    */
   const pushPartner = useCallback(async (title: string, body: string, vibrate: number[], tag: string) => {
     if (!roomId) return;
-    if (Date.now() - partnerUsingRef.current < RECENTLY) {
+    if (Date.now() - partnerOpenRef.current < RECENTLY) {
       setReach({ at: Date.now(), state: "watching" });
       return;
     }
@@ -409,8 +415,8 @@ export default function Room() {
    * she says every need is met. He still cannot end it. Only she can.
    *
    * This is what "he cannot switch it off" actually means on an iPhone. It
-   * pauses while his thumb is on the screen, because he is already being
-   * punished by the game itself, and starts again the moment he wanders off.
+   * stays quiet while his app is open, where the in-app buzz is already doing
+   * the job, and starts again the moment he leaves it.
    */
   useEffect(() => {
     if (me !== "her" || !cycleId) return;
@@ -458,7 +464,9 @@ export default function Room() {
 
   /* ---------------- he sends ---------------- */
   const sendGift = useCallback(async (item: Item) => {
-    if (!cycle) return;
+    // out of guesses: the round is hers now, nothing more goes from him to her.
+    // Checked here as well as hidden on his screen, so a stale tap cannot slip one in.
+    if (!cycle || cycle.revealed) return;
     const { data: row } = await sb.from("gifts").insert({
       cycle_id: cycle.id, emoji: item.emoji, name: item.name, tag: item.tag,
     }).select("id").single();

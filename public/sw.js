@@ -69,10 +69,9 @@ self.addEventListener("push", (event) => {
    * "updated in the background" notice and then cancelling his subscription
    * outright, which is how notifications went from working to completely dead.
    *
-   * Whether he is watching is decided before anything is sent, on her phone,
-   * from the last time his thumb touched the screen. Not from "is his page
-   * visible", which is the question iOS answers wrong. By the time a push
-   * reaches here it is one that should be seen, so this shows every one.
+   * Whether his app is open is decided before anything is sent, on her phone,
+   * from his app telling her so. By the time a push reaches here it is one
+   * that should be seen, so this shows every one.
    */
   const title = payload.title || "She needs you";
   event.waitUntil(
