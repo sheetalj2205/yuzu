@@ -24,6 +24,13 @@ type Cycle = {
  */
 const RECENTLY = 10_000;
 
+/**
+ * What Android plays for a notification while his app is closed. Uneven on
+ * purpose, a stutter then a long drag then a stutter, because an even pulse is
+ * the one a person learns to ignore. (iPhone ignores this and uses its own.)
+ */
+const NAG = [90, 60, 90, 60, 600, 120, 90, 60, 90, 60, 90];
+
 /** The last attempt to reach his phone: for her eyes, so she never has to guess. */
 type Reach = { at: number; state: "watching" | "buzzed" | "unreachable" } | null;
 
@@ -438,7 +445,7 @@ export default function Room() {
       void pushPartner(
         "She's still hurting",
         "You haven't worked it out yet.",
-        [400, 150, 400, 150, 400],
+        NAG,
         "yuzu-cramp",
       );
     }, 20_000);
@@ -468,7 +475,7 @@ export default function Room() {
     void pushPartner(
       "She's in pain",
       `${t.label}. ${t.needs.length} ${t.needs.length === 1 ? "thing" : "things"} she needs.`,
-      [400, 150, 400, 150, 400],
+      NAG,
       "yuzu-cramp",
     );
   }, [sb, roomId, pushPartner, say]);
