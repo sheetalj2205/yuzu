@@ -286,26 +286,23 @@ analytics of any kind.
 
 ## Where this goes next
 
-Yuzu today is a game about one bad evening. The next step is to make it about the
-whole month.
-
-- **Her cycle, tracked by her.** She logs her dates and Yuzu learns roughly when
-  the hard days are coming, so he gets a quiet nudge the day before instead of
-  being woken by pain that has already started. Care becomes something he
-  prepares for. Her dates stay hers, and she chooses how much he ever sees.
-- **Relief, not only a game.** Short guided things she can start from her own
-  screen: breathing to get through a wave, stretches and positions people find
-  help with cramps, a heat routine, something to fall asleep to. Not medical
-  advice and not a replacement for a doctor.
-- **A month worth opening.** Logging how a day went, seeing patterns in her own
-  data, learning what actually helps her. The game is why she opens it on a bad
-  day; the tracker is why she opens it on the other twenty-five.
-- **Buzzing from the server.** The repeat notifications are sent from her phone
-  today, so they pause when her screen locks. A scheduled job would keep his
-  phone going whatever she is doing.
+- **Ship it as a real app.** Yuzu already installs to the home screen and behaves
+  like an app. Four days was enough to build it, not to package it and get it
+  through App Store and Play Store review. A native app also removes the one
+  limit the web cannot beat: an iPhone would finally vibrate for real.
+- **Her cycle, tracked by her.** She logs her dates, and he gets a quiet nudge
+  the day before a hard one instead of being woken by pain already under way.
+  Her dates stay hers, and she decides how much he sees.
+- **Relief, not only a game.** Breathing, stretches, a heat routine, something to
+  fall asleep to, started from her own screen. Practical help, not medical advice.
+- **A reason to open it on the good days.** Her own log and her own patterns. The
+  game is why she opens it on a bad day; the tracker is why she opens it on the
+  other twenty-five.
+- **Buzzing from the server.** The repeat notifications come from her phone
+  today, so they pause when her screen locks. A scheduled job fixes that.
 - **Other kinds of hard days.** A migraine, a panic attack, the night before an
-  exam. The clue engine already works from plain sentences, so it needs a new
-  drawer far more than it needs new AI.
+  exam. The clue engine already reads plain sentences, so it needs a new drawer
+  far more than new AI.
 
 ---
 
