@@ -29,10 +29,35 @@ type Cycle = {
 
 const noop = () => {};
 
+/**
+ * The captions for the landscape walkthrough, in the order they are spoken.
+ *
+ * They are here rather than typed live because a presenter cannot narrate and
+ * think of a heading at the same time, and a recording cannot be un-mistyped.
+ * → and ← move through them, so the person recording only has to press one key.
+ */
+const CHAPTERS = [
+  { over: "the problem",   title: "She is in Pune. He is in Berlin." },
+  { over: "her phone",     title: "She writes what it actually feels like." },
+  { over: "how bad",       title: "One to ten. Tonight it is an eight." },
+  { over: "his phone",     title: "His phone buzzes. Her words do not arrive." },
+  { over: "the clue",      title: "Yuzu turns her pain into one clue." },
+  { over: "the drawer",    title: "Ten things he can send. Three guesses." },
+  { over: "wrong",         title: "Wrong. The clue changes, it does not repeat." },
+  { over: "right",         title: "That one landed." },
+  { over: "out of tries",  title: "Three wrong, and her message unlocks." },
+  { over: "her turn",      title: "Now she gets to hit back. His phone feels it." },
+  { over: "why",           title: "Women describe their pain and are asked to prove it." },
+];
+
 export default function Watch() {
   const { code } = useParams<{ code: string }>();
+  const params = useSearchParams();
   // ?bare=1 drops the chrome, for a clean recording with nothing to crop out
-  const bare = useSearchParams().get("bare") === "1";
+  const bare = params.get("bare") === "1";
+  // ?stage=1 is the landscape one, for a walkthrough video: 16:9, both phones,
+  // and a caption that says what the audience is looking at.
+  const stage = params.get("stage") === "1";
   const sb = useRef(supabase()).current;
 
   const [roomId, setRoomId]   = useState<string | null>(null);
@@ -123,6 +148,34 @@ export default function Watch() {
     return () => { stop = true; clearInterval(id); };
   }, [sb, roomId]);
 
+  /* ---- the landscape stage, and the one key that drives it ---- */
+  const [chapter, setChapter] = useState(0);
+  useEffect(() => {
+    if (!stage) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight" || e.key === " ")
+        setChapter(c => Math.min(CHAPTERS.length - 1, c + 1));
+      if (e.key === "ArrowLeft")
+        setChapter(c => Math.max(0, c - 1));
+    };
+    addEventListener("keydown", onKey);
+    return () => removeEventListener("keydown", onKey);
+  }, [stage]);
+
+  /**
+   * The stage is drawn at a fixed 1600x900 and then scaled to whatever window
+   * it is in. Without this the framing depends on the size of the browser
+   * window, and a video recorded on one laptop looks wrong on another.
+   */
+  const [fit, setFit] = useState(1);
+  useEffect(() => {
+    if (!stage) return;
+    const measure = () => setFit(Math.min(innerWidth / 1600, innerHeight / 900));
+    measure();
+    addEventListener("resize", measure);
+    return () => removeEventListener("resize", measure);
+  }, [stage]);
+
   if (error) {
     return (
       <main className="min-h-dvh grid place-items-center px-6">
@@ -139,6 +192,89 @@ export default function Watch() {
   const points  = cycle ? scoreOf(needs, cycle.intensity) : 0;
   const revealed = !!cycle?.revealed;
 
+  const phones = (
+    <>
+      <Phone label={her ? `${her} · in pain` : "her phone"} bare={bare || stage}>
+        <HerScreen
+          partnerName={him}
+          score={points}
+          needs={needs}
+          gifts={gifts}
+          incoming={pending}
+          waiting={!!cycle && !pending}
+          failed={revealed && left > 0}
+          hits={0}
+          won={false}
+          partnerAt="here"
+          leftCount={0}
+          reach={null}
+          onRooms={noop} onSend={noop} onVerdict={noop}
+          onStrike={noop} onForgive={noop} onRewrite={noop}
+        />
+      </Phone>
+
+      <Phone label={him ? `${him} · guessing` : "his phone"} bare={bare || stage}>
+        <HisScreen
+          partnerName={her}
+          roomCode={`watch-${code}`}   // never touches his own drawer arrangement
+          hint={cycle && !revealed ? hintFor(needs, cycle.tries) : null}
+          tries={cycle?.tries ?? 0}
+          unmetCount={left}
+          revealedMessage={revealed ? cycle?.message ?? null : null}
+          buzzing={false}
+          custom={custom}
+          push="ready"
+          pow={null}
+          love={null}
+          needCount={needs.length}
+          onEnablePush={noop} onSend={noop}
+          onAddFavourite={noop} onRemoveFavourite={noop} onMenu={noop}
+        />
+      </Phone>
+    </>
+  );
+
+  /**
+   * LANDSCAPE. One 16:9 frame holding both phones and a caption, so a screen
+   * recorder pointed at this window produces a finished YouTube shot with
+   * nothing to crop, nothing to arrange and nothing to caption afterwards.
+   */
+  if (stage) {
+    const ch = CHAPTERS[chapter];
+    return (
+      <main className="min-h-dvh overflow-hidden grid place-items-center bg-paper">
+        <div
+          style={{ width: 1600, height: 900, transform: `scale(${fit})` }}
+          className="relative shrink-0 grid grid-cols-[1fr_auto] items-center gap-16 px-20"
+        >
+          <div>
+            <p className="font-round font-black text-sm tracking-[.24em] text-lav uppercase mb-5">
+              {ch.over}
+            </p>
+            <h2 className="font-round font-black text-[62px] leading-[1.08] text-balance">
+              {ch.title}
+            </h2>
+
+            {/* where we are, so a viewer knows the video is going somewhere */}
+            <div className="flex gap-2 mt-10">
+              {CHAPTERS.map((_, i) => (
+                <span key={i}
+                  className={`h-2 rounded-full transition-all
+                              ${i === chapter ? "w-10 bg-pain" : "w-2 bg-line"}`} />
+              ))}
+            </div>
+
+            <p className="font-round font-bold text-xs text-inkFaint mt-10">
+              yuzu-vert.vercel.app · room {code}
+            </p>
+          </div>
+
+          <div className="flex gap-8 items-start">{phones}</div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-dvh px-4 py-6">
       {!bare && (
@@ -153,45 +289,7 @@ export default function Watch() {
 
       {/* Two phones. Each screen is the real component the real phone renders,
           so there is no second version of the UI to drift out of date. */}
-      <div className="flex flex-wrap gap-6 justify-center items-start">
-        <Phone label={her ? `${her} · in pain` : "her phone"} bare={bare}>
-          <HerScreen
-            partnerName={him}
-            score={points}
-            needs={needs}
-            gifts={gifts}
-            incoming={pending}
-            waiting={!!cycle && !pending}
-            failed={revealed && left > 0}
-            hits={0}
-            won={false}
-            partnerAt="here"
-            leftCount={0}
-            reach={null}
-            onRooms={noop} onSend={noop} onVerdict={noop}
-            onStrike={noop} onForgive={noop} onRewrite={noop}
-          />
-        </Phone>
-
-        <Phone label={him ? `${him} · guessing` : "his phone"} bare={bare}>
-          <HisScreen
-            partnerName={her}
-            roomCode={`watch-${code}`}   // never touches his own drawer arrangement
-            hint={cycle && !revealed ? hintFor(needs, cycle.tries) : null}
-            tries={cycle?.tries ?? 0}
-            unmetCount={left}
-            revealedMessage={revealed ? cycle?.message ?? null : null}
-            buzzing={false}
-            custom={custom}
-            push="ready"
-            pow={null}
-            love={null}
-            needCount={needs.length}
-            onEnablePush={noop} onSend={noop}
-            onAddFavourite={noop} onRemoveFavourite={noop} onMenu={noop}
-          />
-        </Phone>
-      </div>
+      <div className="flex flex-wrap gap-6 justify-center items-start">{phones}</div>
 
       {!bare && (
         <p className="text-center text-inkFaint text-[11px] mt-6">
